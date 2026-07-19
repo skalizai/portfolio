@@ -64,6 +64,8 @@ header{position:sticky;top:0;z-index:50;background:rgba(8,8,13,.7);backdrop-filt
 .pill{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;color:var(--dim);border:1px solid var(--line);background:var(--glass);border-radius:99px;padding:7px 14px;margin-bottom:22px}
 .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:pulse 2.4s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.pill .shimmer{background:linear-gradient(90deg,var(--dim) 0%,var(--dim) 40%,var(--txt) 50%,var(--dim) 60%,var(--dim) 100%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 3.2s linear infinite}
+@keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
 h1{font-family:var(--display);font-weight:700;font-size:clamp(2.3rem,5vw,3.6rem);line-height:1.08;letter-spacing:-.03em}
 h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .lede{color:var(--dim);font-size:1.08rem;max-width:33rem;margin:22px 0 32px}
@@ -183,7 +185,7 @@ footer{border-top:1px solid var(--line);padding:26px 0;font-size:.78rem;color:va
 .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
 .reveal.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){
-  .float-chip,.pill .dot,.typing i{animation:none}
+  .float-chip,.pill .dot,.pill .shimmer,.typing i{animation:none}
   html{scroll-behavior:auto}
   .reveal{opacity:1;transform:none;transition:none}
 }
@@ -228,7 +230,7 @@ footer{border-top:1px solid var(--line);padding:26px 0;font-size:.78rem;color:va
   <!-- HERO -->
   <div class="hero">
     <div>
-      <span class="pill"><span class="dot"></span>AI-POWERED PORTFOLIO · DUBAI, UAE</span>
+      <span class="pill"><span class="dot"></span><span class="shimmer">SAP TECHNICAL ARCHITECT · DUBAI, UAE</span></span>
       <h1>SAP Technical Architect<br><span class="grad">building intelligent enterprise landscapes</span></h1>
       <p class="lede">I'm Muhammad Sohail Khan Alizai — 17+ years architecting S/4HANA integrations, CPI iFlows, EWM warehouse automation and clean-core ABAP frameworks for Oil &amp; Gas, manufacturing and utilities.</p>
       <div class="cta-row">
