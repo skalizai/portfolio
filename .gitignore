@@ -6,3 +6,6 @@ desktop.ini
 # Editor
 .vscode/
 *.swp
+
+# Raw source photos (unprocessed originals — not for the public site)
+picture/
