@@ -62,6 +62,8 @@ model Profile {
   id        String   @id @default(cuid())
   json      Json
   cvFileUrl String?
+  // Plain text of the latest CV. Generated applications may only use facts found here or in json.
+  cvText    String?
   updatedAt DateTime @updatedAt
 
   @@schema("jobmatch")
