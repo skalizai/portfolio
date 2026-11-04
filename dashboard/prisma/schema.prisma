@@ -4,8 +4,10 @@ generator client {
 }
 
 // The connection URL lives in prisma.config.ts (migrations) and lib/db.ts (runtime).
+// This database is shared with stockradar, whose tables are in "public". Everything here stays in "jobmatch".
 datasource db {
   provider = "postgresql"
+  schemas  = ["jobmatch"]
 }
 
 enum ApplyChannel {
@@ -14,6 +16,8 @@ enum ApplyChannel {
   LINKEDIN_EASY_APPLY
   COMPANY_SITE
   UNKNOWN
+
+  @@schema("jobmatch")
 }
 
 enum Verdict {
@@ -21,12 +25,16 @@ enum Verdict {
   GOOD
   WEAK
   REJECT
+
+  @@schema("jobmatch")
 }
 
 enum SeniorityFit {
   under
   fit
   over
+
+  @@schema("jobmatch")
 }
 
 enum ApplicationStatus {
@@ -38,12 +46,16 @@ enum ApplicationStatus {
   OFFER
   REJECTED
   WITHDRAWN
+
+  @@schema("jobmatch")
 }
 
 enum JobState {
   ACTIVE
   SAVED
   DISMISSED
+
+  @@schema("jobmatch")
 }
 
 model Profile {
@@ -51,6 +63,8 @@ model Profile {
   json      Json
   cvFileUrl String?
   updatedAt DateTime @updatedAt
+
+  @@schema("jobmatch")
 }
 
 model Job {
@@ -85,6 +99,8 @@ model Job {
   @@unique([source, sourceJobId])
   @@index([company, postedAt])
   @@index([state, postedAt])
+
+  @@schema("jobmatch")
 }
 
 model MatchScore {
@@ -109,6 +125,8 @@ model MatchScore {
 
   @@unique([jobId, profileUpdatedAt, modelVersion])
   @@index([score])
+
+  @@schema("jobmatch")
 }
 
 model Application {
@@ -134,6 +152,8 @@ model Application {
 
   @@index([status])
   @@index([sendAt])
+
+  @@schema("jobmatch")
 }
 
 model SearchConfig {
@@ -146,6 +166,8 @@ model SearchConfig {
   dailyApplyCap    Int      @default(15)
   screeningAnswers Json     @default("{}")
   updatedAt        DateTime @updatedAt
+
+  @@schema("jobmatch")
 }
 
 model AuditLog {
@@ -159,4 +181,6 @@ model AuditLog {
   at            DateTime     @default(now())
 
   @@index([action, at])
+
+  @@schema("jobmatch")
 }
