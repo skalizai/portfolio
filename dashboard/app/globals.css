@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Colour tokens come from the public portfolio. Dark is the default. */
+:root {
+  --bg: #0c0c14;
+  --surface: #14141f;
+  --surface-2: #1c1c2a;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.28);
+  --txt: #edeef3;
+  --dim: #a4a7b8;
+  --violet: #7c6cf6;
+  --cyan: #39c6f2;
+  --accent-text: #a99ffa;
+  --on-accent: #08080d;
+  --gradient: linear-gradient(90deg, var(--violet), var(--cyan));
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --surface-2: #eeeef5;
+  --line: rgba(12, 12, 20, 0.12);
+  --line-strong: rgba(12, 12, 20, 0.45);
+  --txt: #14141f;
+  --dim: #55586a;
+  --accent-text: #5444d0;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-txt: var(--txt);
+  --color-dim: var(--dim);
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+  --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
+  --font-display: var(--font-space-grotesk), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+}
+
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: var(--font-body);
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  :root[data-theme="light"] :focus-visible {
+    outline-color: var(--accent-text);
+  }
+}
+
+@utility bg-gradient-accent {
+  background-image: var(--gradient);
+}

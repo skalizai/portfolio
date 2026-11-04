@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+// The connection URL lives in prisma.config.ts (migrations) and lib/db.ts (runtime).
+datasource db {
+  provider = "postgresql"
+}
+
+enum ApplyChannel {
+  EMAIL
+  ATS_FORM
+  LINKEDIN_EASY_APPLY
+  COMPANY_SITE
+  UNKNOWN
+}
+
+enum Verdict {
+  STRONG
+  GOOD
+  WEAK
+  REJECT
+}
+
+enum SeniorityFit {
+  under
+  fit
+  over
+}
+
+enum ApplicationStatus {
+  DRAFT
+  READY
+  SUBMITTED
+  OPENED_EXTERNALLY
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum JobState {
+  ACTIVE
+  SAVED
+  DISMISSED
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  json      Json
+  cvFileUrl String?
+  updatedAt DateTime @updatedAt
+}
+
+model Job {
+  id             String       @id @default(cuid())
+  source         String
+  sourceJobId    String
+  // Original board behind an aggregator (LinkedIn, Indeed, Bayt...), for the source chip.
+  publisher      String?
+  title          String
+  company        String
+  location       String?
+  workMode       String?
+  employmentType String?
+  description    String
+  url            String
+  applyUrl       String?
+  applyEmail     String?
+  applyChannel   ApplyChannel @default(UNKNOWN)
+  salaryMin      Int?
+  salaryMax      Int?
+  currency       String?
+  postedAt       DateTime?
+  fetchedAt      DateTime     @default(now())
+  dedupeHash     String       @unique
+  rawJson        Json?
+  state          JobState     @default(ACTIVE)
+
+  scores      MatchScore[]
+  application Application?
+  auditLogs   AuditLog[]
+
+  @@unique([source, sourceJobId])
+  @@index([company, postedAt])
+  @@index([state, postedAt])
+}
+
+model MatchScore {
+  id               String       @id @default(cuid())
+  jobId            String
+  job              Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  score            Int
+  verdict          Verdict
+  matchedSkills    String[]
+  missingSkills    String[]
+  keyRequirements  String[]
+  redFlags         String[]
+  seniorityFit     SeniorityFit
+  locationFit      Boolean
+  reasoning        String
+  modelVersion     String
+  // Cache key: a job is re-scored only when the profile changes.
+  profileUpdatedAt DateTime
+  inputTokens      Int?
+  outputTokens     Int?
+  createdAt        DateTime     @default(now())
+
+  @@unique([jobId, profileUpdatedAt, modelVersion])
+  @@index([score])
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  // One application per job, enforced by the database rather than only in the UI.
+  jobId          String            @unique
+  job            Job               @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  status         ApplicationStatus @default(DRAFT)
+  channel        ApplyChannel
+  coverLetter    String?
+  tailoredCvUrl  String?
+  emailMessageId String?
+  // Undo window: the send happens at this time unless it is cancelled first.
+  sendAt         DateTime?
+  submittedAt    DateTime?
+  notes          String?
+  // Snapshots of exactly what was sent, plus status transitions.
+  history        Json              @default("[]")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([status])
+  @@index([sendAt])
+}
+
+model SearchConfig {
+  id               String   @id @default(cuid())
+  keywords         String[]
+  locations        String[]
+  minScore         Int      @default(70)
+  sourcesEnabled   String[]
+  schedule         String   @default("0 */2 * * *")
+  dailyApplyCap    Int      @default(15)
+  screeningAnswers Json     @default("{}")
+  updatedAt        DateTime @updatedAt
+}
+
+model AuditLog {
+  id            String       @id @default(cuid())
+  action        String
+  jobId         String?
+  job           Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  payload       Json?
+  at            DateTime     @default(now())
+
+  @@index([action, at])
+}

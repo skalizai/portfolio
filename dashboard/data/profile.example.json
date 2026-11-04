@@ -1,0 +1,21 @@
+{
+  "name": "Your Name",
+  "headline": "Your headline",
+  "location": "City, Country",
+  "yearsExperience": 0,
+  "currentRole": "",
+  "coreSkills": [],
+  "modules": [],
+  "industries": [],
+  "certifications": [],
+  "leadership": "",
+  "targetTitles": [],
+  "preferences": {
+    "locations": [],
+    "workModes": ["onsite", "hybrid", "remote"],
+    "employmentTypes": ["full-time", "contract"],
+    "minSeniority": "Senior",
+    "excludeKeywords": [],
+    "salaryFloorAED": null
+  }
+}

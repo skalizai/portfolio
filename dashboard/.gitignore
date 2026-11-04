@@ -1,0 +1,20 @@
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client
+lib/generated/
+
+# Personal data. This repo is public and GitHub Pages serves it, so real CV and
+# profile data must only ever live in the database or on this machine.
+data/*
+!data/profile.example.json
