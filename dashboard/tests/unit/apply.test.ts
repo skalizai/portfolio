@@ -110,6 +110,11 @@ describe("draftApplication", () => {
     expect(outcome).toMatchObject({ kind: "ok", warnings: [], inputTokens: 100, outputTokens: 50 });
   });
 
+  it("counts cached input in the tokens it reports", async () => {
+    const usage = { input_tokens: 100, output_tokens: 50, cache_creation_input_tokens: 900, cache_read_input_tokens: 9000 };
+    expect(await draftApplication(JOB, PROFILE, CV, replying({}, { usage }))).toMatchObject({ inputTokens: 10000, outputTokens: 50 });
+  });
+
   it("warns about invented facts in the letter and the summary", async () => {
     const outcome = await draftApplication(JOB, PROFILE, CV, replying({
       coverLetter: `${LETTER}\nI also hold TOGAF and led 500 people.`,
