@@ -60,6 +60,40 @@ describe("hardFilter", () => {
     expect(hardFilter(job("SAP Lead", "Dubai"), PROFILE.preferences, wanted, NOW)?.locationFit).toBe(false);
   });
 
+  describe("visa sponsorship", () => {
+    const preferences = { ...PROFILE.preferences, visaSponsorshipLocations: ["New Zealand", "Australia"] };
+    const check = (location: string, description: string) =>
+      hardFilter({ title: "SAP Lead", location, workMode: null, postedAt: null, description }, preferences, ["New Zealand", "Australia", "Dubai"], NOW);
+
+    it("rejects listings that don't mention it, by city as well as country", () => {
+      expect(check("Auckland, Auckland, New Zealand", "Lead our SAP team.")?.reason).toContain("doesn't mention visa sponsorship");
+      expect(check("Sydney NSW", "Lead our SAP team.")?.reason).toContain("Australia");
+    });
+
+    it.each([
+      "Unfortunately, we are unable to offer visa sponsorship at this time.",
+      "Visa sponsorship is not available for this position.",
+      "TerraCycle does not provide for visa sponsorships.",
+      "We do not offer visa sponsorship of any kind.",
+      "No visa sponsorship.",
+    ])("rejects a refusal: %s", (description) => {
+      expect(check("Melbourne, Victoria, Australia", description)?.reason).toContain("isn't available");
+    });
+
+    it.each([
+      "For the successful applicant we will support with obtaining work visa.",
+      "We offer: * Visa sponsorship",
+      "Speech Pathologist - 482 Visa Sponsorship Available",
+      "Do you need any visa sponsorship?",
+    ])("passes this on to Claude: %s", (description) => {
+      expect(check("Auckland", description)).toBeNull();
+    });
+
+    it("doesn't apply elsewhere", () => {
+      expect(check("Dubai", "Lead our SAP team.")).toBeNull();
+    });
+  });
+
   it("rejects jobs over 30 days old", () => {
     expect(filter(job("SAP Lead", "Dubai", { postedAt: new Date(Date.UTC(2026, 9, 1)) }))?.reason).toContain("30 days");
     expect(filter(job("SAP Lead", "Dubai", { postedAt: new Date(Date.UTC(2026, 9, 20)) }))).toBeNull();

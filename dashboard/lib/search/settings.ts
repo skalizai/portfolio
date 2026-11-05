@@ -28,7 +28,7 @@ export const SearchSettingsSchema = z.object({
 export type SearchSettings = z.infer<typeof SearchSettingsSchema>;
 
 /** The saved search, falling back to the profile's target titles and locations until one is saved. */
-export async function getSearchSettings(): Promise<SearchSettings & { sourcesEnabled: string[] }> {
+export async function getSearchSettings(): Promise<SearchSettings & { sourcesEnabled: string[]; visaSponsorshipLocations: string[] }> {
   const [config, stored] = await Promise.all([
     db().searchConfig.findFirst({ orderBy: { updatedAt: "desc" } }),
     getProfile(),
@@ -37,6 +37,7 @@ export async function getSearchSettings(): Promise<SearchSettings & { sourcesEna
     keywords: config?.keywords.length ? config.keywords : (stored?.profile.targetTitles ?? []),
     locations: config?.locations.length ? config.locations : (stored?.profile.preferences.locations ?? []),
     sourcesEnabled: config?.sourcesEnabled ?? [],
+    visaSponsorshipLocations: stored?.profile.preferences.visaSponsorshipLocations ?? [],
     minScore: config?.minScore ?? 70,
     scoreDailyCap: config?.scoreDailyCap ?? 50,
   };

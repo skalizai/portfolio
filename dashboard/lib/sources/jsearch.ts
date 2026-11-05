@@ -66,7 +66,9 @@ const JSearchResponse = z.object({ status: z.string().optional(), data: z.object
 export type SearchQuery = { query: string; country?: string };
 
 /** One search per title and region. Dubai, Abu Dhabi and UAE all search the same market. */
-export function buildQueries(keywords: string[], locations: string[]): SearchQuery[] {
+export function buildQueries(keywords: string[], locations: string[], visaLocations: string[] = []): SearchQuery[] {
+  const labelOf = (place: string) => (COUNTRIES[place.trim().toLowerCase()]?.label ?? place.trim()).toLowerCase();
+  const needsVisa = new Set(visaLocations.map(labelOf));
   const regions = new Map<string, { label: string; country?: string }>();
   for (const location of locations) {
     const known = COUNTRIES[location.trim().toLowerCase()];
@@ -86,7 +88,10 @@ export function buildQueries(keywords: string[], locations: string[]): SearchQue
     });
   return unique.flatMap((keyword) =>
     [...regions.values()].map(({ label, country }) => ({
-      query: label.toLowerCase() === "remote" ? `${keyword} remote` : `${keyword} in ${label}`,
+      query:
+        label.toLowerCase() === "remote"
+          ? `${keyword} remote`
+          : `${keyword}${needsVisa.has(label.toLowerCase()) ? " visa sponsorship" : ""} in ${label}`,
       ...(country ? { country } : {}),
     })),
   );
@@ -206,7 +211,7 @@ export function jsearchSource(fetchImpl: typeof fetch = fetch): JobSource {
           ? [context.manualQuery]
           : []
         : nextQueries(
-            buildQueries(context.keywords, context.locations),
+            buildQueries(context.keywords, context.locations, context.visaLocations),
             requestsThisMonth,
             allowedRequests({ now: context.now, requestsThisMonth, requestsToday, monthlyLimit, perRun }),
           );

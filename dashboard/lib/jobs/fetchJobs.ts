@@ -72,7 +72,7 @@ export async function runJobFetch(
 ): Promise<FetchReport> {
   const now = options.now ?? new Date();
   const startedAt = Date.now();
-  const { keywords, locations, sourcesEnabled } = await getSearchSettings();
+  const { keywords, locations, sourcesEnabled, visaSponsorshipLocations } = await getSearchSettings();
   const usage = await requestUsage(now);
   const sources = options.sources ?? enabledSources(sourcesEnabled.length ? sourcesEnabled : sourcesFromEnv());
 
@@ -86,6 +86,7 @@ export async function runJobFetch(
           now,
           keywords,
           locations,
+          visaLocations: visaSponsorshipLocations,
           usage: usage[source.name] ?? { requestsThisMonth: 0, requestsToday: 0 },
           manualQuery: options.manualQuery,
         });

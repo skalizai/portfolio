@@ -331,6 +331,14 @@ describe("morning search pacing", () => {
     vi.unstubAllEnvs();
   });
 
+  it("looks for sponsorship only in the places that need it", () => {
+    expect(buildQueries(["SAP Lead"], ["Dubai", "New Zealand", "Remote"], ["New Zealand"])).toEqual([
+      { query: "SAP Lead in UAE", country: "ae" },
+      { query: "SAP Lead visa sponsorship in New Zealand", country: "nz" },
+      { query: "SAP Lead remote" },
+    ]);
+  });
+
   it("searches a repeated keyword only once", () => {
     expect(buildQueries(["SAP Lead", "sap lead "], ["New Zealand"])).toEqual([{ query: "SAP Lead in New Zealand", country: "nz" }]);
   });

@@ -28,6 +28,7 @@ export const ProfileSchema = z.object({
     minSeniority: text,
     excludeKeywords: list,
     salaryFloorAED: z.number().int().min(0).nullable(),
+    visaSponsorshipLocations: list.default([]),
   }),
 });
 
@@ -53,5 +54,6 @@ export const EMPTY_PROFILE: Profile = {
     minSeniority: "Senior",
     excludeKeywords: [],
     salaryFloorAED: null,
+    visaSponsorshipLocations: [],
   },
 };
