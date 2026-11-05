@@ -21,6 +21,7 @@ export default defineConfig({
         DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${TEST_DB_PORT}/postgres?sslmode=disable`,
         DIRECT_URL: "",
         ANTHROPIC_API_KEY: "",
+        RAPIDAPI_KEY: "",
         AUTH_SECRET: TEST_AUTH_SECRET,
         AUTH_TRUST_HOST: "true",
         AUTH_ALLOWED_EMAIL: TEST_ALLOWED_EMAIL,

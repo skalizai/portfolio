@@ -8,7 +8,13 @@ export async function getProfile(): Promise<StoredProfile | null> {
   const row = await db().profile.findFirst({ orderBy: { updatedAt: "asc" } });
   if (!row) return null;
   // Fill in any fields added to the schema since this row was saved.
-  const profile = ProfileSchema.parse({ ...EMPTY_PROFILE, ...(row.json as object) });
+  const saved = row.json as Partial<Profile>;
+  const profile = ProfileSchema.parse({
+    ...EMPTY_PROFILE,
+    ...saved,
+    contact: { ...EMPTY_PROFILE.contact, ...saved.contact },
+    preferences: { ...EMPTY_PROFILE.preferences, ...saved.preferences },
+  });
   return { profile, cvText: row.cvText, updatedAt: row.updatedAt };
 }
 

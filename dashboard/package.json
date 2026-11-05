@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "jobs:fetch": "tsx scripts/fetch-jobs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",

@@ -41,11 +41,18 @@ test.describe("signed out", () => {
     const wrong = await request.post("/api/jobs/fetch", { headers: { authorization: "Bearer nope" } });
     expect(wrong.status()).toBe(401);
 
-    // The route arrives in step 3. 404 here means the secret got past the auth check.
     const right = await request.post("/api/jobs/fetch", {
       headers: { authorization: `Bearer ${TEST_CRON_SECRET}` },
     });
-    expect(right.status()).toBe(404);
+    expect(right.status()).toBe(200);
+    expect(await right.json()).toMatchObject({ sources: {}, inserted: 0 });
+
+    // The cron secret only opens that one route.
+    const elsewhere = await request.put("/api/profile", {
+      headers: { authorization: `Bearer ${TEST_CRON_SECRET}` },
+      data: {},
+    });
+    expect(elsewhere.status()).toBe(401);
   });
 
   test("the login page is accessible and fits 380 px", async ({ page }) => {
