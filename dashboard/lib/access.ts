@@ -33,7 +33,7 @@ export function isValidCronRequest(
 }
 
 /** The scheduler has no browser session, so these paths alone also accept the cron secret. */
-const CRON_PATHS = ["/api/jobs/fetch", "/api/jobs/score", "/api/applications/auto"];
+const CRON_PATHS = ["/api/jobs/fetch", "/api/jobs/score", "/api/applications/auto", "/api/applications/process"];
 
 export function decideAccess(input: {
   pathname: string;

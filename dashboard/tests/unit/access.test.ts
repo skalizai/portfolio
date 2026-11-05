@@ -75,7 +75,11 @@ describe("decideAccess", () => {
     expect(decide("/api/jobs/fetch", null, bearer)).toBe("allow");
     expect(decide("/api/jobs/score", null, bearer)).toBe("allow");
     expect(decide("/api/applications/auto", null, bearer)).toBe("allow");
+    expect(decide("/api/applications/process", null, bearer)).toBe("allow");
     expect(decide("/api/applications/x", null, bearer)).toBe("unauthorized");
+    // The scheduler can send what you've confirmed, but can't confirm anything itself.
+    expect(decide("/api/applications/x/send", null, bearer)).toBe("unauthorized");
+    expect(decide("/api/applications/approve-all", null, bearer)).toBe("unauthorized");
     expect(decide("/api/jobs/score", null, "Bearer wrong")).toBe("unauthorized");
     expect(decide("/api/jobs/fetch", null, "Bearer wrong")).toBe("unauthorized");
     expect(decide("/api/jobs/fetch")).toBe("unauthorized");

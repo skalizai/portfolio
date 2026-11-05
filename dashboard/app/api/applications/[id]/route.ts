@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TailoredCvSchema } from "@/lib/apply/cvSchema";
+import { isEmailConfigured } from "@/lib/apply/send";
 import { requireApiSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -13,6 +14,7 @@ const SELECT = {
   coverLetter: true,
   tailoredCv: true,
   draftWarnings: true,
+  sendAt: true,
   submittedAt: true,
   updatedAt: true,
   job: { select: { id: true, title: true, company: true, url: true, applyUrl: true, applyEmail: true } },
@@ -23,7 +25,7 @@ export async function GET(_request: Request, { params }: Context) {
   if (denied) return denied;
 
   const application = await db().application.findUnique({ where: { id: (await params).id }, select: SELECT });
-  return application ? Response.json(application) : Response.json({ error: "Application not found." }, { status: 404 });
+  return application ? Response.json({ ...application, emailReady: isEmailConfigured() }) : Response.json({ error: "Application not found." }, { status: 404 });
 }
 
 const PatchSchema = z.object({
@@ -41,13 +43,13 @@ export async function PATCH(request: Request, { params }: Context) {
 
   const { id } = await params;
   const { count } = await db().application.updateMany({
-    where: { id, submittedAt: null },
+    where: { id, submittedAt: null, sendAt: null },
     data: {
       coverLetter: body.data.coverLetter,
       tailoredCv: body.data.tailoredCv as Prisma.InputJsonValue | undefined,
     },
   });
-  if (!count) return Response.json({ error: "This application has already been submitted or no longer exists." }, { status: 409 });
+  if (!count) return Response.json({ error: "This application is waiting to send or already submitted, so it can't be edited." }, { status: 409 });
 
-  return Response.json(await db().application.findUnique({ where: { id }, select: SELECT }));
+  return Response.json({ ...(await db().application.findUnique({ where: { id }, select: SELECT })), emailReady: isEmailConfigured() });
 }

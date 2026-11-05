@@ -171,7 +171,7 @@ describe("runJobFetch", () => {
 describe("saved search settings", () => {
   it("drive the next search, in place of the profile's titles and locations", async () => {
     const { saveSearchSettings } = await import("@/lib/search/settings");
-    await saveSearchSettings({ keywords: ["SAP CPI"], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5 });
+    await saveSearchSettings({ keywords: ["SAP CPI"], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5, dailyApplyCap: 15 });
 
     let seen: Partial<{ keywords: string[]; locations: string[] }> = {};
     const spy: JobSource = {
@@ -190,7 +190,7 @@ describe("saved search settings", () => {
 
   it("are cleaned up and rejected when empty", async () => {
     const { SearchSettingsSchema } = await import("@/lib/search/settings");
-    expect(SearchSettingsSchema.parse({ keywords: [" SAP ", "sap", ""], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5 }).keywords).toEqual(["SAP"]);
-    expect(SearchSettingsSchema.safeParse({ keywords: [" "], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5 }).success).toBe(false);
+    expect(SearchSettingsSchema.parse({ keywords: [" SAP ", "sap", ""], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5, dailyApplyCap: 15 }).keywords).toEqual(["SAP"]);
+    expect(SearchSettingsSchema.safeParse({ keywords: [" "], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5, dailyApplyCap: 15 }).success).toBe(false);
   });
 });

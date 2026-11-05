@@ -1,3 +1,4 @@
+import { isEmailConfigured } from "@/lib/apply/send";
 import { db } from "@/lib/db";
 import { sponsorshipStatus } from "@/lib/matching/filters";
 import { RULES_VERSION } from "@/lib/matching/scoreJobs";
@@ -29,7 +30,8 @@ export async function getJobsOverview(now = new Date()) {
         postedAt: true,
         state: true,
         description: true,
-        application: { select: { id: true, submittedAt: true } },
+        applyEmail: true,
+        application: { select: { id: true, submittedAt: true, sendAt: true, coverLetter: true, draftWarnings: true } },
         scores: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -49,7 +51,15 @@ export async function getJobsOverview(now = new Date()) {
   const rows = jobs.map(({ scores, description, application, ...job }) => ({
     ...job,
     match: scores[0] ?? null,
-    application: application ? { id: application.id, submitted: application.submittedAt !== null } : null,
+    application: application
+      ? {
+          id: application.id,
+          submitted: application.submittedAt !== null,
+          sendAt: application.sendAt,
+          // Whether Approve all may include this: an email job with a finished draft and nothing to check.
+          approvable: job.applyChannel === "EMAIL" && Boolean(job.applyEmail && application.coverLetter?.trim()) && !application.submittedAt && !application.sendAt && !application.draftWarnings.length,
+        }
+      : null,
     sponsorshipUnmentioned: sponsorshipStatus({ title: job.title, location: job.location, description }, preferences) === "unmentioned",
   }));
 
@@ -68,6 +78,7 @@ export async function getJobsOverview(now = new Date()) {
     below: others.filter((job) => job.match!.score < settings.minScore).sort(byScore),
     waiting: rows.filter((job) => !job.match),
     minScore: settings.minScore,
+    emailReady: isEmailConfigured(),
     newMatches: matches.filter((job) => job.match!.createdAt.getTime() >= dayAgo).length,
     averageScore: matches.length ? Math.round(matches.reduce((sum, job) => sum + job.match!.score, 0) / matches.length) : null,
     applicationsThisWeek: submitted.filter((a) => a.submittedAt!.getTime() >= weekAgo).length,

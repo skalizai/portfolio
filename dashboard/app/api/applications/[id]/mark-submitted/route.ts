@@ -8,9 +8,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (denied) return denied;
 
   const { id } = await params;
-  const application = await db().application.findUnique({ where: { id }, select: { submittedAt: true, coverLetter: true, tailoredCv: true, history: true, jobId: true } });
+  const application = await db().application.findUnique({ where: { id }, select: { submittedAt: true, sendAt: true, coverLetter: true, tailoredCv: true, history: true, jobId: true } });
   if (!application) return Response.json({ error: "Application not found." }, { status: 404 });
   if (application.submittedAt) return Response.json({ error: "You've already marked this as applied." }, { status: 409 });
+
+  if (application.sendAt) return Response.json({ error: "This is waiting to send. Cancel it first if you've applied another way." }, { status: 409 });
 
   const now = new Date();
   const entry = { at: now.toISOString(), action: "marked-submitted", coverLetter: application.coverLetter, tailoredCv: application.tailoredCv };

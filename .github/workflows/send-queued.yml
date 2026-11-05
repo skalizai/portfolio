@@ -1,0 +1,29 @@
+name: Send queued applications
+
+# Sends application emails that have been confirmed in the dashboard and whose undo window has
+# passed, for when the dashboard isn't open to do it. It can't confirm or queue anything itself.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the dashboard
+        env:
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$DASHBOARD_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "DASHBOARD_URL or CRON_SECRET isn't set yet, so there is nothing to do."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 150 -o /dev/null -w "HTTP %{http_code}\n" \
+            -X POST "$DASHBOARD_URL/api/applications/process" \
+            -H "Authorization: Bearer $CRON_SECRET"

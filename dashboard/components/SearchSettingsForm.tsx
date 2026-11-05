@@ -24,7 +24,7 @@ export function SearchSettingsForm({
   initial,
   requestsPerDay,
 }: {
-  initial: { keywords: string[]; locations: string[]; minScore: number; scoreDailyCap: number; draftDailyCap: number };
+  initial: { keywords: string[]; locations: string[]; minScore: number; scoreDailyCap: number; draftDailyCap: number; dailyApplyCap: number };
   requestsPerDay: number;
 }) {
   const [keywords, setKeywords] = useState(initial.keywords.join("\n"));
@@ -32,6 +32,7 @@ export function SearchSettingsForm({
   const [minScore, setMinScore] = useState(String(initial.minScore));
   const [scoreDailyCap, setScoreDailyCap] = useState(String(initial.scoreDailyCap));
   const [draftDailyCap, setDraftDailyCap] = useState(String(initial.draftDailyCap));
+  const [dailyApplyCap, setDailyApplyCap] = useState(String(initial.dailyApplyCap));
   const [message, setMessage] = useState("");
 
   const searches = buildQueries(fromLines(keywords), fromLines(locations)).length;
@@ -50,6 +51,7 @@ export function SearchSettingsForm({
         minScore: minScore.trim() ? Number(minScore) : null,
         scoreDailyCap: scoreDailyCap.trim() ? Number(scoreDailyCap) : null,
         draftDailyCap: draftDailyCap.trim() ? Number(draftDailyCap) : null,
+        dailyApplyCap: dailyApplyCap.trim() ? Number(dailyApplyCap) : null,
       }),
     }).catch(() => null);
 
@@ -97,6 +99,10 @@ export function SearchSettingsForm({
           <label className="block text-sm">
             Most application drafts Claude may prepare per day
             <input className={FIELD} type="number" min={0} max={50} value={draftDailyCap} onChange={(e) => setDraftDailyCap(e.target.value)} />
+          </label>
+          <label className="block text-sm">
+            Most applications to send per day
+            <input className={FIELD} type="number" min={0} max={50} value={dailyApplyCap} onChange={(e) => setDailyApplyCap(e.target.value)} />
           </label>
         </div>
         <p className="mt-3 text-sm text-dim">The daily limits control what Claude can spend. Anything over them waits until the next day.</p>

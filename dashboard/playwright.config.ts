@@ -22,6 +22,11 @@ export default defineConfig({
         DIRECT_URL: "",
         ANTHROPIC_API_KEY: "",
         RAPIDAPI_KEY: "",
+        // Port 1 has nothing listening, so these tests can't send a real email.
+        SMTP_USER: "e2e@example.com",
+        SMTP_APP_PASSWORD: "e2e",
+        SMTP_HOST: "127.0.0.1",
+        SMTP_PORT: "1",
         AUTH_SECRET: TEST_AUTH_SECRET,
         AUTH_TRUST_HOST: "true",
         AUTH_ALLOWED_EMAIL: TEST_ALLOWED_EMAIL,
