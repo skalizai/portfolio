@@ -43,7 +43,7 @@ const JSearchJob = z.object({
     .nullish(),
 });
 
-const JSearchResponse = z.object({ status: z.string().optional(), data: z.array(z.unknown()) });
+const JSearchResponse = z.object({ status: z.string().optional(), data: z.object({ jobs: z.array(z.unknown()) }) });
 
 export type SearchQuery = { query: string; country?: string };
 
@@ -131,7 +131,7 @@ export function normaliseJSearchJob(raw: unknown): NormalisedJob | null {
     company: clean(job.employer_name),
     location: location ? clean(location) : null,
     workMode: workModeOf(job.job_is_remote, description),
-    employmentType: job.job_employment_type ? (EMPLOYMENT_TYPES[job.job_employment_type] ?? job.job_employment_type.toLowerCase()) : null,
+    employmentType: job.job_employment_type ? (EMPLOYMENT_TYPES[job.job_employment_type.toUpperCase().replace(/[^A-Z]/g, "")] ?? job.job_employment_type.toLowerCase()) : null,
     description,
     url,
     applyUrl,
@@ -147,6 +147,7 @@ export function normaliseJSearchJob(raw: unknown): NormalisedJob | null {
 
 function describeFailure(status: number): string {
   if (status === 429) return "JSearch rate limit or quota reached (429).";
+  if (status === 404) return "JSearch no longer recognises this endpoint (404).";
   if (status === 401 || status === 403) return `JSearch rejected the key, or you aren't subscribed (${status}).`;
   return `JSearch returned an error (${status}).`;
 }
@@ -174,8 +175,8 @@ export function jsearchSource(fetchImpl: typeof fetch = fetch): JobSource {
       const result: FetchResult = { jobs: [], requests: 0, queries: [], skipped: 0, errors: [] };
 
       for (const { query, country } of queries) {
-        const url = new URL(`https://${HOST}/search`);
-        url.search = new URLSearchParams({ query, page: "1", num_pages: "1", date_posted: "week", ...(country ? { country } : {}) }).toString();
+        const url = new URL(`https://${HOST}/search-v2`);
+        url.search = new URLSearchParams({ query, language: "en", date_posted: "month", ...(country ? { country } : {}) }).toString();
 
         result.requests++;
         result.queries.push(query);
@@ -188,7 +189,7 @@ export function jsearchSource(fetchImpl: typeof fetch = fetch): JobSource {
           if (!response.ok) {
             result.errors.push(describeFailure(response.status));
             // Further requests would fail the same way and could use up more quota.
-            if (response.status === 429 || response.status === 401 || response.status === 403) break;
+            if ([401, 403, 404, 429].includes(response.status)) break;
             continue;
           }
 
@@ -197,7 +198,7 @@ export function jsearchSource(fetchImpl: typeof fetch = fetch): JobSource {
             result.errors.push("JSearch returned a response in an unexpected format.");
             continue;
           }
-          for (const raw of body.data.data) {
+          for (const raw of body.data.data.jobs) {
             const job = normaliseJSearchJob(raw);
             if (job) result.jobs.push(job);
             else result.skipped++;

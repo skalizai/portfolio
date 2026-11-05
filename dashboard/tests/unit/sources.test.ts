@@ -241,12 +241,14 @@ describe("jsearchSource", () => {
   });
 
   it("calls the next search in the rotation, with the key in a header only", async () => {
-    const fetchMock = vi.fn(async () => json({ status: "OK", data: [RAW, { job_id: "broken" }] }));
+    const fetchMock = vi.fn(async () => json({ status: "OK", data: { jobs: [RAW, { job_id: "broken" }], cursor: null } }));
     const result = await jsearchSource(fetchMock as unknown as typeof fetch).fetch(context);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
     expect(url.searchParams.get("query")).toBe("SAP Lead in Qatar");
+    expect(url.pathname).toBe("/search-v2");
     expect(url.searchParams.get("country")).toBe("qa");
+    expect(url.searchParams.get("language")).toBe("en");
     expect(url.toString()).not.toContain("secret-key");
     expect(init.headers).toMatchObject({ "x-rapidapi-key": "secret-key" });
 
@@ -265,7 +267,7 @@ describe("jsearchSource", () => {
   });
 
   it("runs a specific search when asked, but still respects the monthly quota", async () => {
-    const fetchMock = vi.fn(async () => json({ data: [] }));
+    const fetchMock = vi.fn(async () => json({ data: { jobs: [], cursor: null } }));
     const source = jsearchSource(fetchMock as unknown as typeof fetch);
     const manualQuery = { query: "SAP CPI Architect Dubai", country: "ae" };
 
@@ -275,7 +277,7 @@ describe("jsearchSource", () => {
 
   it("stops after a rate limit or rejected key and reports it without the key", async () => {
     vi.stubEnv("JSEARCH_MAX_REQUESTS_PER_RUN", "5");
-    for (const status of [429, 401, 403]) {
+    for (const status of [429, 401, 403, 404]) {
       const fetchMock = vi.fn(async () => json({}, status));
       const result = await jsearchSource(fetchMock as unknown as typeof fetch).fetch(context);
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -298,5 +300,23 @@ describe("jsearchSource", () => {
     expect(jsearchSource().isConfigured()).toBe(true);
     vi.stubEnv("RAPIDAPI_KEY", "");
     expect(jsearchSource().isConfigured()).toBe(false);
+  });
+});
+
+describe("JSearch employment types", () => {
+  it.each([
+    ["Full-time", "full-time"],
+    ["FULLTIME", "full-time"],
+    ["Contractor", "contract"],
+    ["Part-time", "part-time"],
+  ])("reads %s as %s", (given, expected) => {
+    const job = normaliseJSearchJob({
+      job_id: "1",
+      job_title: "SAP Lead",
+      employer_name: "Acme",
+      job_apply_link: "https://acme.example/jobs/1",
+      job_employment_type: given,
+    });
+    expect(job?.employmentType).toBe(expected);
   });
 });
