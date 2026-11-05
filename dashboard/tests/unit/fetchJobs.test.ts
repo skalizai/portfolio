@@ -167,3 +167,30 @@ describe("runJobFetch", () => {
     expect(seen).toEqual({ keywords: ["SAP Lead"], locations: ["Qatar"] });
   });
 });
+
+describe("saved search settings", () => {
+  it("drive the next search, in place of the profile's titles and locations", async () => {
+    const { saveSearchSettings } = await import("@/lib/search/settings");
+    await saveSearchSettings({ keywords: ["SAP CPI"], locations: ["Oman"] });
+
+    let seen: Partial<{ keywords: string[]; locations: string[] }> = {};
+    const spy: JobSource = {
+      name: "test",
+      isConfigured: () => true,
+      fetch: async ({ keywords, locations }) => {
+        seen = { keywords, locations };
+        return { jobs: [], requests: 0, queries: [], skipped: 0, errors: [] };
+      },
+    };
+    await runJobFetch({ sources: [spy], now: NOW });
+    expect(seen).toEqual({ keywords: ["SAP CPI"], locations: ["Oman"] });
+
+    await db().searchConfig.deleteMany();
+  });
+
+  it("are cleaned up and rejected when empty", async () => {
+    const { SearchSettingsSchema } = await import("@/lib/search/settings");
+    expect(SearchSettingsSchema.parse({ keywords: [" SAP ", "sap", ""], locations: ["Oman"] }).keywords).toEqual(["SAP"]);
+    expect(SearchSettingsSchema.safeParse({ keywords: [" "], locations: ["Oman"] }).success).toBe(false);
+  });
+});

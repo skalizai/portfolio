@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { dedupeHash, isFuzzyDuplicate } from "@/lib/dedupe";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import { getProfile } from "@/lib/profile/store";
+import { getSearchSettings } from "@/lib/search/settings";
 import { enabledSources, sourcesFromEnv } from "@/lib/sources";
 import type { FetchContext, JobSource, NormalisedJob } from "@/lib/sources/types";
 
@@ -16,18 +16,6 @@ export type FetchReport = {
   duplicates: number;
   durationMs: number;
 };
-
-async function searchTerms(): Promise<{ keywords: string[]; locations: string[]; enabled: string[] }> {
-  const [config, stored] = await Promise.all([
-    db().searchConfig.findFirst({ orderBy: { updatedAt: "desc" } }),
-    getProfile(),
-  ]);
-  return {
-    keywords: config?.keywords.length ? config.keywords : (stored?.profile.targetTitles ?? []),
-    locations: config?.locations.length ? config.locations : (stored?.profile.preferences.locations ?? []),
-    enabled: config?.sourcesEnabled.length ? config.sourcesEnabled : sourcesFromEnv(),
-  };
-}
 
 /** Counts past requests per source from the run log, which is what keeps searches inside the quota. */
 async function requestUsage(now: Date): Promise<Record<string, FetchContext["usage"]>> {
@@ -84,9 +72,9 @@ export async function runJobFetch(
 ): Promise<FetchReport> {
   const now = options.now ?? new Date();
   const startedAt = Date.now();
-  const { keywords, locations, enabled } = await searchTerms();
+  const { keywords, locations, sourcesEnabled } = await getSearchSettings();
   const usage = await requestUsage(now);
-  const sources = options.sources ?? enabledSources(enabled);
+  const sources = options.sources ?? enabledSources(sourcesEnabled.length ? sourcesEnabled : sourcesFromEnv());
 
   const reports: Record<string, SourceReport> = {};
   const jobs: NormalisedJob[] = [];

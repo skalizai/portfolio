@@ -1,11 +1,11 @@
 name: Fetch jobs
 
-# Asks the deployed dashboard to fetch new jobs every 2 hours. The dashboard does the work and
+# Asks the deployed dashboard to fetch new jobs every morning at 7:00 Gulf time. The dashboard does the work and
 # holds the API keys; this only needs the two repository secrets below. GitHub may run scheduled
 # jobs a little late, which doesn't matter here.
 on:
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:

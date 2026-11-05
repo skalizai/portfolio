@@ -1,5 +1,15 @@
-import { PageStub } from "@/components/PageStub";
+import { SearchSettingsForm } from "@/components/SearchSettingsForm";
+import { getSearchSettings } from "@/lib/search/settings";
+import { requestsPerDayFromEnv } from "@/lib/sources/jsearch";
 
-export default function SettingsPage() {
-  return <PageStub title="Settings" description="Search, sources, connected accounts and limits will live here." />;
+export default async function SettingsPage() {
+  const { keywords, locations } = await getSearchSettings();
+
+  return (
+    <>
+      <h1 className="text-2xl font-semibold">Settings</h1>
+      <p className="mt-2 text-dim">Choose what the morning job search looks for.</p>
+      <SearchSettingsForm initial={{ keywords, locations }} requestsPerDay={requestsPerDayFromEnv()} />
+    </>
+  );
 }

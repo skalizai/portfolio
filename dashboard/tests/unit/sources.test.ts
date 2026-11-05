@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { channelForUrl, detectChannel, findApplyEmail, safeUrl } from "@/lib/apply/channelDetect";
 import { dedupeHash, isFuzzyDuplicate, titleSimilarity } from "@/lib/dedupe";
-import { allowedRequests, buildQueries, jsearchSource, nextQueries, normaliseJSearchJob } from "@/lib/sources/jsearch";
+import { allowedRequests, buildQueries, jsearchSource, nextQueries, normaliseJSearchJob, requestsPerDayFromEnv, searchCycleDays } from "@/lib/sources/jsearch";
 import type { FetchContext } from "@/lib/sources/types";
 
 const RAW = {
@@ -235,6 +235,7 @@ describe("jsearchSource", () => {
 
   beforeEach(() => {
     vi.stubEnv("RAPIDAPI_KEY", "secret-key");
+    vi.stubEnv("JSEARCH_MAX_REQUESTS_PER_RUN", "1");
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -318,5 +319,19 @@ describe("JSearch employment types", () => {
       job_employment_type: given,
     });
     expect(job?.employmentType).toBe(expected);
+  });
+});
+
+describe("morning search pacing", () => {
+  it("fits the monthly allowance and reports how long a full rotation takes", () => {
+    vi.stubEnv("JSEARCH_MONTHLY_REQUEST_LIMIT", "200");
+    vi.stubEnv("JSEARCH_MAX_REQUESTS_PER_RUN", "7");
+    expect(requestsPerDayFromEnv()).toBe(6);
+    expect(searchCycleDays(28, 6)).toBe(5);
+    vi.unstubAllEnvs();
+  });
+
+  it("sets the country for places added in settings", () => {
+    expect(buildQueries(["SAP Lead"], ["Oman", "Muscat"])).toEqual([{ query: "SAP Lead in Oman", country: "om" }]);
   });
 });

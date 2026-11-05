@@ -3,6 +3,11 @@ import { detectChannel, safeUrl } from "@/lib/apply/channelDetect";
 import type { FetchContext, FetchResult, JobSource, NormalisedJob } from "@/lib/sources/types";
 
 const HOST = "jsearch.p.rapidapi.com";
+const DEFAULT_MONTHLY_LIMIT = 200;
+// One run a day, so this is close to a 30th of the monthly allowance.
+const DEFAULT_REQUESTS_PER_RUN = 7;
+// Leaves time for the last request to finish before the route's 120 second limit.
+const STOP_STARTING_AFTER_MS = 80_000;
 
 const COUNTRIES: Record<string, { country: string; label: string }> = {
   dubai: { country: "ae", label: "UAE" },
@@ -15,6 +20,18 @@ const COUNTRIES: Record<string, { country: string; label: string }> = {
   riyadh: { country: "sa", label: "Saudi Arabia" },
   qatar: { country: "qa", label: "Qatar" },
   doha: { country: "qa", label: "Qatar" },
+  oman: { country: "om", label: "Oman" },
+  muscat: { country: "om", label: "Oman" },
+  bahrain: { country: "bh", label: "Bahrain" },
+  kuwait: { country: "kw", label: "Kuwait" },
+  "united kingdom": { country: "gb", label: "United Kingdom" },
+  uk: { country: "gb", label: "United Kingdom" },
+  germany: { country: "de", label: "Germany" },
+  netherlands: { country: "nl", label: "Netherlands" },
+  singapore: { country: "sg", label: "Singapore" },
+  india: { country: "in", label: "India" },
+  canada: { country: "ca", label: "Canada" },
+  australia: { country: "au", label: "Australia" },
 };
 
 const nullableString = z.string().nullish();
@@ -84,6 +101,17 @@ export function allowedRequests(input: {
 }
 
 /** Continues from where the last run stopped, so every search gets its turn. */
+export function requestsPerDayFromEnv(): number {
+  const monthlyLimit = Number(process.env.JSEARCH_MONTHLY_REQUEST_LIMIT) || DEFAULT_MONTHLY_LIMIT;
+  const perRun = Number(process.env.JSEARCH_MAX_REQUESTS_PER_RUN) || DEFAULT_REQUESTS_PER_RUN;
+  return Math.max(1, Math.min(perRun, Math.floor(monthlyLimit / 31)));
+}
+
+/** How many days it takes for every search to get a turn. */
+export function searchCycleDays(searches: number, requestsPerDay: number): number {
+  return Math.ceil(searches / Math.max(1, requestsPerDay));
+}
+
 export function nextQueries(queries: SearchQuery[], requestsSoFar: number, count: number): SearchQuery[] {
   if (!queries.length) return [];
   return Array.from({ length: Math.min(count, queries.length) }, (_, i) => queries[(requestsSoFar + i) % queries.length]!);
@@ -158,8 +186,8 @@ export function jsearchSource(fetchImpl: typeof fetch = fetch): JobSource {
     isConfigured: () => Boolean(process.env.RAPIDAPI_KEY),
 
     async fetch(context: FetchContext): Promise<FetchResult> {
-      const monthlyLimit = Number(process.env.JSEARCH_MONTHLY_REQUEST_LIMIT) || 200;
-      const perRun = Number(process.env.JSEARCH_MAX_REQUESTS_PER_RUN) || 1;
+      const monthlyLimit = Number(process.env.JSEARCH_MONTHLY_REQUEST_LIMIT) || DEFAULT_MONTHLY_LIMIT;
+      const perRun = Number(process.env.JSEARCH_MAX_REQUESTS_PER_RUN) || DEFAULT_REQUESTS_PER_RUN;
       const { requestsThisMonth, requestsToday } = context.usage;
 
       const queries = context.manualQuery
@@ -174,7 +202,10 @@ export function jsearchSource(fetchImpl: typeof fetch = fetch): JobSource {
 
       const result: FetchResult = { jobs: [], requests: 0, queries: [], skipped: 0, errors: [] };
 
+      const startedAt = Date.now();
       for (const { query, country } of queries) {
+        // The rotation picks up from here on the next run, so nothing is lost by stopping.
+        if (Date.now() - startedAt > STOP_STARTING_AFTER_MS) break;
         const url = new URL(`https://${HOST}/search-v2`);
         url.search = new URLSearchParams({ query, language: "en", date_posted: "month", ...(country ? { country } : {}) }).toString();
 
