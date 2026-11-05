@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { channelForUrl, detectChannel, findApplyEmail, safeUrl } from "@/lib/apply/channelDetect";
+import { applyEmailContext, channelForUrl, detectChannel, findApplyEmail, safeUrl } from "@/lib/apply/channelDetect";
 import { dedupeHash, isFuzzyDuplicate, titleSimilarity } from "@/lib/dedupe";
 import { allowedRequests, buildQueries, jsearchSource, nextQueries, normaliseJSearchJob, requestsPerDayFromEnv, searchCycleDays } from "@/lib/sources/jsearch";
 import type { FetchContext } from "@/lib/sources/types";
@@ -221,6 +221,44 @@ describe("normaliseJSearchJob", () => {
     expect(normaliseJSearchJob({ ...RAW, employer_name: "" })).toBeNull();
     expect(normaliseJSearchJob({ ...RAW, job_apply_link: "javascript:alert(1)" })).toBeNull();
     expect(normaliseJSearchJob({ ...RAW, job_posted_at_datetime_utc: "nonsense" })?.postedAt).toBeNull();
+  });
+});
+
+describe("findApplyEmail", () => {
+  it.each([
+    ["*How to apply* Email your resume to hr@axrgroup.com.au with the role title", "hr@axrgroup.com.au"],
+    ["Send your CV to jobs@acme.com", "jobs@acme.com"],
+    ["Please share your updated CV at talent@acme.com", "talent@acme.com"],
+    ["Interested candidates may forward their resumes to careers@acme.com.", "careers@acme.com"],
+    ["Applications should be sent to recruit@acme.com", "recruit@acme.com"],
+    ["To apply, email hr@acme.com", "hr@acme.com"],
+    ["Apply by email: hr@acme.com", "hr@acme.com"],
+    ["Apply at jobs@acme.com", "jobs@acme.com"],
+    ["CVs to: jobs@acme.com", "jobs@acme.com"],
+  ])("accepts: %s", (text, email) => {
+    expect(findApplyEmail(text)).toBe(email);
+  });
+
+  // The first five are real sentences from listings that this once treated as places to apply.
+  it.each([
+    "If you receive a suspicious email, verify its authenticity by contacting us at NZinfo@deloitte.co.nz.",
+    "If you require adjustments to the recruitment process or have a preferred communication method, please email exectalent@accenture.com and cite the relevant Job Number.",
+    "If you have questions before or during your application, we welcome you to get in touch at contactrecruitment@au.ey.com or call.",
+    "If you need help to use the website or complete your application, please send an email with your request to the Recruiting Operations Team: Careers@sap.com.",
+    "For accessibility support with your application, send your CV to access@acme.com",
+    "For more information email info@acme.com",
+    "Our office address is hello@acme.com",
+    "Apply now on our website. Contact hello@acme.com",
+    "Send your CV to noreply@acme.com",
+  ])("rejects: %s", (text) => {
+    expect(findApplyEmail(text)).toBeNull();
+  });
+
+  it("shows the listing's own sentence for an address", () => {
+    const text = "We pay well. How to apply: email your resume to hr@acme.com with the title.";
+    expect(applyEmailContext(text, "hr@acme.com")).toBe("How to apply: email your resume to hr@acme.com with the title.");
+    expect(applyEmailContext(text, "other@acme.com")).toBeNull();
+    expect(applyEmailContext(text, null)).toBeNull();
   });
 });
 

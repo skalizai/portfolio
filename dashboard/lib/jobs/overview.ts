@@ -1,3 +1,4 @@
+import { applyEmailContext } from "@/lib/apply/channelDetect";
 import { isEmailConfigured } from "@/lib/apply/send";
 import { db } from "@/lib/db";
 import { sponsorshipStatus } from "@/lib/matching/filters";
@@ -51,6 +52,7 @@ export async function getJobsOverview(now = new Date()) {
   const rows = jobs.map(({ scores, description, application, ...job }) => ({
     ...job,
     match: scores[0] ?? null,
+    applyEmailContext: applyEmailContext(description, job.applyEmail),
     application: application
       ? {
           id: application.id,

@@ -421,6 +421,12 @@ export function JobsBoard({
               <strong>{job.title}</strong>, {job.company}
               <br />
               <span className="text-dim">To {job.applyEmail}</span>
+              {job.applyEmailContext && (
+                <>
+                  <br />
+                  <span className="text-dim">The listing says: &ldquo;{job.applyEmailContext}&rdquo;</span>
+                </>
+              )}
             </li>
           ))}
         </ul>

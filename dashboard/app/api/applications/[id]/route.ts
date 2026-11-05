@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { applyEmailContext } from "@/lib/apply/channelDetect";
 import { TailoredCvSchema } from "@/lib/apply/cvSchema";
 import { isEmailConfigured } from "@/lib/apply/send";
 import { requireApiSession } from "@/lib/auth";
@@ -17,15 +18,26 @@ const SELECT = {
   sendAt: true,
   submittedAt: true,
   updatedAt: true,
-  job: { select: { id: true, title: true, company: true, url: true, applyUrl: true, applyEmail: true } },
+  job: { select: { id: true, title: true, company: true, url: true, applyUrl: true, applyEmail: true, description: true } },
 } as const;
+
+type Row = NonNullable<Awaited<ReturnType<typeof load>>>;
+
+function load(id: string) {
+  return db().application.findUnique({ where: { id }, select: SELECT });
+}
+
+/** Adds what the page needs, and leaves out the long description itself. */
+function present({ job: { description, ...job }, ...application }: Row) {
+  return { ...application, job, applyEmailContext: applyEmailContext(description, job.applyEmail), emailReady: isEmailConfigured() };
+}
 
 export async function GET(_request: Request, { params }: Context) {
   const denied = await requireApiSession();
   if (denied) return denied;
 
-  const application = await db().application.findUnique({ where: { id: (await params).id }, select: SELECT });
-  return application ? Response.json({ ...application, emailReady: isEmailConfigured() }) : Response.json({ error: "Application not found." }, { status: 404 });
+  const application = await load((await params).id);
+  return application ? Response.json(present(application)) : Response.json({ error: "Application not found." }, { status: 404 });
 }
 
 const PatchSchema = z.object({
@@ -51,5 +63,6 @@ export async function PATCH(request: Request, { params }: Context) {
   });
   if (!count) return Response.json({ error: "This application is waiting to send or already submitted, so it can't be edited." }, { status: 409 });
 
-  return Response.json({ ...(await db().application.findUnique({ where: { id }, select: SELECT })), emailReady: isEmailConfigured() });
+  const application = await load(id);
+  return application ? Response.json(present(application)) : Response.json({ error: "Application not found." }, { status: 404 });
 }

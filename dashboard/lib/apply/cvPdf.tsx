@@ -1,10 +1,13 @@
-import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Font, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { TailoredCv } from "@/lib/apply/cvSchema";
+
+// Automatic hyphenation mangles technical terms, such as turning OData into "ODa-ta".
+Font.registerHyphenationCallback((word) => [word]);
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, lineHeight: 1.4, color: "#14141f" },
-  name: { fontFamily: "Helvetica-Bold", fontSize: 18 },
-  headline: { fontSize: 12, marginTop: 2 },
+  name: { fontFamily: "Helvetica-Bold", fontSize: 18, lineHeight: 1.2 },
+  headline: { fontSize: 12, marginTop: 6 },
   contact: { fontSize: 9, marginTop: 4, color: "#55586a" },
   heading: { fontFamily: "Helvetica-Bold", fontSize: 11, marginTop: 14, marginBottom: 4, paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: "#c8c9d4" },
   roleTitle: { fontFamily: "Helvetica-Bold", marginTop: 6 },

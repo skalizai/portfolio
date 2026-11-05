@@ -15,6 +15,7 @@ type Application = {
   submittedAt: string | null;
   sendAt: string | null;
   emailReady: boolean;
+  applyEmailContext: string | null;
   job: { title: string; company: string; url: string; applyUrl: string | null; applyEmail: string | null };
 };
 
@@ -310,6 +311,11 @@ export function ApplyDrawer({
               <p className="mt-1 break-words text-dim">
                 Applications for this job go to {application.job.applyEmail}.
                 {!application.emailReady && " Sending from here isn't set up yet, so email it yourself for now."}
+              </p>
+            )}
+            {application.channel === "EMAIL" && application.applyEmailContext && (
+              <p className="mt-1 break-words">
+                <span className="text-dim">The listing says: </span>&ldquo;{application.applyEmailContext}&rdquo;
               </p>
             )}
             {application.channel === "EMAIL" && application.job.applyEmail && application.emailReady && !submitted && (

@@ -190,13 +190,14 @@ test.describe.serial("drafts", () => {
 
   test("an email draft asks first, waits, locks and can be cancelled", async ({ page, context }) => {
     await addScoredJob("mail-1", "SAP Mail Lead", "EMAIL", true);
-    await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@mail.example.com' WHERE id = 'mail-1'`));
+    await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@mail.example.com', description = 'Email your CV to hr@mail.example.com' WHERE id = 'mail-1'`));
 
     await page.goto("/");
     await page.getByRole("button", { name: /Review draft for SAP Mail Lead/ }).click();
     const drawer = page.getByRole("dialog");
     await drawer.getByRole("button", { name: "Send application by email" }).click();
     await expect(drawer.getByText(/This emails your cover letter and tailored CV to hr@mail.example.com/)).toBeVisible();
+    await expect(drawer.getByText("Email your CV to hr@mail.example.com")).toBeVisible();
     expect(await (await context.request.get("/api/applications/app-mail-1")).json()).toMatchObject({ sendAt: null });
 
     await drawer.getByRole("button", { name: "Yes, send it" }).click();
