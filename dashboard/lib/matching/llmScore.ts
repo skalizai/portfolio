@@ -34,7 +34,7 @@ Set the verdict from the score: STRONG 85 and above, GOOD 70 to 84, WEAK 40 to 6
 - missingSkills: requirements of the job the profile doesn't show.
 - seniorityFit: "under" if the role is too senior for the candidate, "over" if the candidate is overqualified, otherwise "fit".
 - locationFit: whether the job's location and work mode suit the candidate's preferences.
-- preferences.visaSponsorshipLocations lists places where the candidate needs visa sponsorship. For a job in one of them, the listing must clearly offer sponsorship or help obtaining a work visa. If it doesn't, for example it only asks whether you need sponsorship, set locationFit to false, score it below 40 and say why in redFlags.
+- preferences.visaSponsorshipLocations lists places where the candidate needs visa sponsorship. For a job in one of them, if the listing says nothing about visas or sponsorship, score it normally and add "Sponsorship not mentioned" to redFlags. If it refuses sponsorship or requires existing work rights, set locationFit to false, score it below 40 and say why in redFlags.
 - reasoning: at most 3 sentences, specific to this job.
 - keyRequirements: the job's main requirements, briefly.
 - redFlags: real concerns in the listing, such as a vague description or contract terms that clash with the preferences. Most listings omit salary and work mode, so don't flag those on their own, and don't repeat seniority fit here. Leave it empty if there are none. If the listing is too short to judge properly, say so here.

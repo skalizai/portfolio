@@ -43,11 +43,20 @@ const REFUSES_SPONSORSHIP = [
   /\b(sponsor\w*|visas?)\b[^.\n]{0,40}\b(not|unavailable|isn't|cannot)\b/i,
 ];
 
-/** Rules out what's clearly wrong for free. Claude judges the unclear cases, like a bare "Sponsorship:". */
-function sponsorshipProblem(job: FilterableJob): string | null {
+/**
+ * For a job in a country where you need sponsorship: whether its listing refuses it, says nothing,
+ * or says something Claude should judge, like a bare "Sponsorship:". Null for any other job.
+ */
+export function sponsorshipStatus(
+  job: Pick<FilterableJob, "title" | "location" | "description">,
+  preferences: Pick<Profile["preferences"], "visaSponsorshipLocations">,
+): "refused" | "unmentioned" | "mentioned" | null {
+  const location = job.location?.toLowerCase();
+  if (!location || !preferences.visaSponsorshipLocations.some((place) => isInPlace(location, place))) return null;
+
   const text = `${job.title}\n${job.description ?? ""}`;
-  if (!/\b(visas?|sponsor\w*)\b/i.test(text)) return "doesn't mention visa sponsorship";
-  return REFUSES_SPONSORSHIP.some((pattern) => pattern.test(text)) ? "says visa sponsorship isn't available" : null;
+  if (!/\b(visas?|sponsor\w*)\b/i.test(text)) return "unmentioned";
+  return REFUSES_SPONSORSHIP.some((pattern) => pattern.test(text)) ? "refused" : "mentioned";
 }
 
 function isWantedLocation(job: FilterableJob, wanted: string[]): boolean {
@@ -82,10 +91,8 @@ export function hardFilter(
     return { reason: `${job.location} isn't in your search locations.`, seniorityFit: "fit", locationFit: false };
   }
 
-  const visaPlace = job.location && preferences.visaSponsorshipLocations.find((place) => isInPlace(job.location!.toLowerCase(), place));
-  if (visaPlace) {
-    const problem = sponsorshipProblem(job);
-    if (problem) return { reason: `This listing ${problem}, which you need in ${visaPlace}.`, seniorityFit: "fit", locationFit: false };
+  if (sponsorshipStatus(job, preferences) === "refused") {
+    return { reason: "This listing says visa sponsorship isn't available, and you need it in this country.", seniorityFit: "fit", locationFit: false };
   }
 
   if (job.postedAt && now.getTime() - job.postedAt.getTime() > MAX_AGE_MS) {

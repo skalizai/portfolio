@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hardFilter, type FilterableJob } from "@/lib/matching/filters";
+import { hardFilter, sponsorshipStatus, type FilterableJob } from "@/lib/matching/filters";
 import { keywordScore, matchesTargetTitle, MIN_KEYWORD_SCORE } from "@/lib/matching/keywordScore";
 import { llmScore, scoringPrompt, type MatchResult, type ScoreCallResult } from "@/lib/matching/llmScore";
 import { EMPTY_PROFILE, type Profile } from "@/lib/profile/schema";
@@ -65,9 +65,13 @@ describe("hardFilter", () => {
     const check = (location: string, description: string) =>
       hardFilter({ title: "SAP Lead", location, workMode: null, postedAt: null, description }, preferences, ["New Zealand", "Australia", "Dubai"], NOW);
 
-    it("rejects listings that don't mention it, by city as well as country", () => {
-      expect(check("Auckland, Auckland, New Zealand", "Lead our SAP team.")?.reason).toContain("doesn't mention visa sponsorship");
-      expect(check("Sydney NSW", "Lead our SAP team.")?.reason).toContain("Australia");
+    it("identifies listings that don't mention it, by city as well as country, and passes them on to Claude", () => {
+      for (const location of ["Auckland, Auckland, New Zealand", "Sydney NSW", "Beenleigh QLD 4207"]) {
+        expect(check(location, "Lead our SAP team.")).toBeNull();
+        expect(sponsorshipStatus({ title: "SAP Lead", location, description: "Lead our SAP team." }, preferences)).toBe("unmentioned");
+      }
+      expect(sponsorshipStatus({ title: "SAP Lead", location: "Dubai", description: "Lead." }, preferences)).toBeNull();
+      expect(sponsorshipStatus({ title: "SAP Lead", location: "Auckland", description: "Visa sponsorship offered." }, preferences)).toBe("mentioned");
     });
 
     it.each([
@@ -93,7 +97,6 @@ describe("hardFilter", () => {
       for (const location of ["Beenleigh QLD 4207", "Macquarie Park NSW", "Greater Hamilton Area", "Perth WA 6000"]) {
         expect(check(location, "We offer: * Visa sponsorship")).toBeNull();
       }
-      expect(check("Beenleigh QLD 4207", "Lead our SAP team.")?.reason).toContain("Australia");
     });
 
     it("doesn't apply elsewhere", () => {

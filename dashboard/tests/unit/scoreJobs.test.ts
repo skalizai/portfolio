@@ -123,7 +123,7 @@ describe("scoreNewJobs", () => {
   });
 
   it("stops at the daily limit and leaves the rest for tomorrow", async () => {
-    await saveSearchSettings({ keywords: ["SAP"], locations: ["Dubai"], minScore: 70, scoreDailyCap: 2 });
+    await saveSearchSettings({ keywords: ["SAP"], locations: ["Dubai"], minScore: 70, scoreDailyCap: 2, draftDailyCap: 5 });
     await addJobs([STRONG, STRONG, STRONG]);
 
     const first = await scoreNewJobs({ now: NOW, call });
@@ -138,7 +138,7 @@ describe("scoreNewJobs", () => {
   });
 
   it("makes no calls at all with a limit of zero", async () => {
-    await saveSearchSettings({ keywords: ["SAP"], locations: ["Dubai"], minScore: 70, scoreDailyCap: 0 });
+    await saveSearchSettings({ keywords: ["SAP"], locations: ["Dubai"], minScore: 70, scoreDailyCap: 0, draftDailyCap: 5 });
     await addJobs([STRONG]);
     expect(await scoreNewJobs({ now: NOW, call })).toMatchObject({ scored: 0, remaining: 1, capReached: true });
     expect(call).not.toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe("scoreNewJobs", () => {
     await scoreNewJobs({ now: NOW, call });
     expect(call).not.toHaveBeenCalled();
 
-    await saveSearchSettings({ keywords: ["SAP"], locations: ["Oman"], minScore: 70, scoreDailyCap: 50 });
+    await saveSearchSettings({ keywords: ["SAP"], locations: ["Oman"], minScore: 70, scoreDailyCap: 50, draftDailyCap: 5 });
     await scoreNewJobs({ now: NOW, call });
     expect(call).toHaveBeenCalledTimes(1);
   });

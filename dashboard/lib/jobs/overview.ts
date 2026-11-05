@@ -1,4 +1,8 @@
 import { db } from "@/lib/db";
+import { sponsorshipStatus } from "@/lib/matching/filters";
+import { RULES_VERSION } from "@/lib/matching/scoreJobs";
+import { EMPTY_PROFILE } from "@/lib/profile/schema";
+import { getProfile } from "@/lib/profile/store";
 import { getSearchSettings } from "@/lib/search/settings";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -7,7 +11,7 @@ const RESPONDED = ["INTERVIEW", "OFFER", "REJECTED"];
 
 /** Everything the Matches page shows. Applications that are only drafted don't count as applied. */
 export async function getJobsOverview(now = new Date()) {
-  const [jobs, settings, submitted, lastRun] = await Promise.all([
+  const [jobs, settings, stored, submitted, lastRun] = await Promise.all([
     db().job.findMany({
       where: { state: { not: "DISMISSED" } },
       orderBy: [{ postedAt: { sort: "desc", nulls: "last" } }, { fetchedAt: "desc" }],
@@ -23,32 +27,46 @@ export async function getJobsOverview(now = new Date()) {
         applyChannel: true,
         publisher: true,
         postedAt: true,
+        state: true,
+        description: true,
+        application: { select: { id: true, submittedAt: true } },
         scores: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { score: true, verdict: true, matchedSkills: true, missingSkills: true, redFlags: true, reasoning: true, createdAt: true },
+          select: { score: true, verdict: true, matchedSkills: true, missingSkills: true, redFlags: true, reasoning: true, createdAt: true, modelVersion: true },
         },
       },
     }),
     getSearchSettings(),
+    getProfile(),
     db().application.findMany({ where: { submittedAt: { not: null } }, select: { status: true, submittedAt: true } }),
     db().auditLog.findFirst({ where: { action: "jobs.fetch" }, orderBy: { at: "desc" }, select: { at: true } }),
   ]);
 
-  const rows = jobs.map(({ scores, ...job }) => ({ ...job, match: scores[0] ?? null }));
-  const matches = rows
-    .filter((job) => job.match && job.match.score >= settings.minScore)
-    .sort((a, b) => b.match!.score - a.match!.score);
-  const below = rows.filter((job) => job.match && job.match.score < settings.minScore).sort((a, b) => b.match!.score - a.match!.score);
-  const waiting = rows.filter((job) => !job.match);
+  const preferences = stored?.profile.preferences ?? EMPTY_PROFILE.preferences;
 
+  // Descriptions are long, so they're only used here and aren't sent to the browser.
+  const rows = jobs.map(({ scores, description, application, ...job }) => ({
+    ...job,
+    match: scores[0] ?? null,
+    application: application ? { id: application.id, submitted: application.submittedAt !== null } : null,
+    sponsorshipUnmentioned: sponsorshipStatus({ title: job.title, location: job.location, description }, preferences) === "unmentioned",
+  }));
+
+  const byScore = <T extends { match: { score: number } | null }>(a: T, b: T) => (b.match?.score ?? 0) - (a.match?.score ?? 0);
+  const scored = rows.filter((job) => job.match);
+  const needsAsking = scored.filter((job) => job.sponsorshipUnmentioned && job.match!.modelVersion !== RULES_VERSION);
+  const others = scored.filter((job) => !needsAsking.includes(job));
+
+  const matches = others.filter((job) => job.match!.score >= settings.minScore).sort(byScore);
   const dayAgo = now.getTime() - DAY_MS;
   const weekAgo = now.getTime() - 7 * DAY_MS;
 
   return {
     matches,
-    below,
-    waiting,
+    sponsorshipUnknown: needsAsking.sort(byScore),
+    below: others.filter((job) => job.match!.score < settings.minScore).sort(byScore),
+    waiting: rows.filter((job) => !job.match),
     minScore: settings.minScore,
     newMatches: matches.filter((job) => job.match!.createdAt.getTime() >= dayAgo).length,
     averageScore: matches.length ? Math.round(matches.reduce((sum, job) => sum + job.match!.score, 0) / matches.length) : null,

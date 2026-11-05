@@ -1,5 +1,6 @@
 import { JobsBoard } from "@/components/JobsBoard";
 import { getJobsOverview } from "@/lib/jobs/overview";
+import { getScreeningAnswers } from "@/lib/search/screening";
 
 const timeFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -19,7 +20,10 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default async function MatchesPage() {
-  const { matches, below, waiting, minScore, newMatches, averageScore, applicationsThisWeek, responseRate, lastSearchAt } = await getJobsOverview();
+  const [{ matches, sponsorshipUnknown, below, waiting, minScore, newMatches, averageScore, applicationsThisWeek, responseRate, lastSearchAt }, screening] = await Promise.all([
+    getJobsOverview(),
+    getScreeningAnswers(),
+  ]);
 
   return (
     <>
@@ -36,7 +40,7 @@ export default async function MatchesPage() {
         <Stat label="Response rate" value={responseRate === null ? "None yet" : `${responseRate}%`} />
       </dl>
 
-      <JobsBoard matches={matches} below={below} waiting={waiting} minScore={minScore} />
+      <JobsBoard matches={matches} sponsorshipUnknown={sponsorshipUnknown} below={below} waiting={waiting} minScore={minScore} screening={screening} />
     </>
   );
 }

@@ -24,13 +24,14 @@ export function SearchSettingsForm({
   initial,
   requestsPerDay,
 }: {
-  initial: { keywords: string[]; locations: string[]; minScore: number; scoreDailyCap: number };
+  initial: { keywords: string[]; locations: string[]; minScore: number; scoreDailyCap: number; draftDailyCap: number };
   requestsPerDay: number;
 }) {
   const [keywords, setKeywords] = useState(initial.keywords.join("\n"));
   const [locations, setLocations] = useState(initial.locations.join("\n"));
   const [minScore, setMinScore] = useState(String(initial.minScore));
   const [scoreDailyCap, setScoreDailyCap] = useState(String(initial.scoreDailyCap));
+  const [draftDailyCap, setDraftDailyCap] = useState(String(initial.draftDailyCap));
   const [message, setMessage] = useState("");
 
   const searches = buildQueries(fromLines(keywords), fromLines(locations)).length;
@@ -48,6 +49,7 @@ export function SearchSettingsForm({
         // An empty box becomes null, which the server rejects with a clear message.
         minScore: minScore.trim() ? Number(minScore) : null,
         scoreDailyCap: scoreDailyCap.trim() ? Number(scoreDailyCap) : null,
+        draftDailyCap: draftDailyCap.trim() ? Number(draftDailyCap) : null,
       }),
     }).catch(() => null);
 
@@ -82,7 +84,7 @@ export function SearchSettingsForm({
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-lg font-semibold">Scoring</h2>
+        <h2 className="text-lg font-semibold">Scoring and drafts</h2>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <label className="block text-sm">
             Minimum score to show as a match
@@ -92,8 +94,12 @@ export function SearchSettingsForm({
             Most jobs Claude may score per day
             <input className={FIELD} type="number" min={0} max={500} value={scoreDailyCap} onChange={(e) => setScoreDailyCap(e.target.value)} />
           </label>
+          <label className="block text-sm">
+            Most application drafts Claude may prepare per day
+            <input className={FIELD} type="number" min={0} max={50} value={draftDailyCap} onChange={(e) => setDraftDailyCap(e.target.value)} />
+          </label>
         </div>
-        <p className="mt-3 text-sm text-dim">The daily limit controls what scoring can spend. Anything over it waits until the next day.</p>
+        <p className="mt-3 text-sm text-dim">The daily limits control what Claude can spend. Anything over them waits until the next day.</p>
       </section>
 
       <div className="flex flex-wrap items-center gap-3">

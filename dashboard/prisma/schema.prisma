@@ -64,6 +64,8 @@ model Profile {
   cvFileUrl String?
   // Plain text of the latest CV. Generated applications may only use facts found here or in json.
   cvText    String?
+  // The CV in sections, so that tailoring can only reorder what's already there.
+  cvStructured Json?
   updatedAt DateTime @updatedAt
 
   @@schema("jobmatch")
@@ -140,6 +142,11 @@ model Application {
   channel        ApplyChannel
   coverLetter    String?
   tailoredCvUrl  String?
+  tailoredCv     Json?
+  // Things for you to check, such as a name that isn't in your CV.
+  draftWarnings  String[]          @default([])
+  inputTokens    Int?
+  outputTokens   Int?
   emailMessageId String?
   // Undo window: the send happens at this time unless it is cancelled first.
   sendAt         DateTime?
@@ -167,6 +174,7 @@ model SearchConfig {
   schedule         String   @default("0 */2 * * *")
   dailyApplyCap    Int      @default(15)
   scoreDailyCap    Int      @default(50)
+  draftDailyCap    Int      @default(5)
   screeningAnswers Json     @default("{}")
   updatedAt        DateTime @updatedAt
 

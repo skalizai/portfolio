@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { EMPTY_PROFILE, ProfileSchema, type Profile } from "@/lib/profile/schema";
 
 export type StoredProfile = { profile: Profile; cvText: string | null; updatedAt: Date };
@@ -23,7 +24,11 @@ export async function saveProfile(profile: Profile, cvText?: string): Promise<Da
   return db().$transaction(async (tx) => {
     const existing = await tx.profile.findFirst({ orderBy: { updatedAt: "asc" }, select: { id: true } });
     const saved = existing
-      ? await tx.profile.update({ where: { id: existing.id }, data: { json: profile, cvText } })
+      ? await tx.profile.update({
+          where: { id: existing.id },
+          // A new CV clears the structured copy, so that it's parsed again when next needed.
+          data: { json: profile, cvText, ...(cvText !== undefined ? { cvStructured: Prisma.DbNull } : {}) },
+        })
       : await tx.profile.create({ data: { json: profile, cvText } });
     await tx.auditLog.create({
       data: { action: "profile.saved", payload: { cvUpdated: cvText !== undefined } },

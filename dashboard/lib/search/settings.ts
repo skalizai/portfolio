@@ -23,6 +23,7 @@ export const SearchSettingsSchema = z.object({
   locations: uniqueList("Countries"),
   minScore: z.number({ error: "Enter a minimum score" }).int().min(0, "Minimum score must be 0 to 100").max(100, "Minimum score must be 0 to 100"),
   scoreDailyCap: z.number({ error: "Enter a daily scoring limit" }).int().min(0, "The daily limit must be 0 to 500").max(500, "The daily limit must be 0 to 500"),
+  draftDailyCap: z.number({ error: "Enter a daily draft limit" }).int().min(0, "The draft limit must be 0 to 50").max(50, "The draft limit must be 0 to 50"),
 });
 
 export type SearchSettings = z.infer<typeof SearchSettingsSchema>;
@@ -40,6 +41,7 @@ export async function getSearchSettings(): Promise<SearchSettings & { sourcesEna
     visaSponsorshipLocations: stored?.profile.preferences.visaSponsorshipLocations ?? [],
     minScore: config?.minScore ?? 70,
     scoreDailyCap: config?.scoreDailyCap ?? 50,
+    draftDailyCap: config?.draftDailyCap ?? 5,
   };
 }
 
@@ -51,7 +53,7 @@ export async function saveSearchSettings(settings: SearchSettings): Promise<void
     // Free to redo, and a job ruled out for its location may now be wanted.
     await tx.matchScore.deleteMany({ where: { modelVersion: "rules" } });
     await tx.auditLog.create({
-      data: { action: "search.saved", payload: { keywords: settings.keywords.length, locations: settings.locations.length, minScore: settings.minScore, scoreDailyCap: settings.scoreDailyCap } },
+      data: { action: "search.saved", payload: { keywords: settings.keywords.length, locations: settings.locations.length, minScore: settings.minScore, scoreDailyCap: settings.scoreDailyCap, draftDailyCap: settings.draftDailyCap } },
     });
   });
 }

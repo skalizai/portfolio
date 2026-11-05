@@ -51,7 +51,7 @@ test.describe.serial("search settings and jobs", () => {
     await expect(page.getByText("That makes 4 searches")).toBeVisible();
     await page.getByLabel(/Minimum score/).fill("75");
     await page.getByRole("button", { name: "Save settings" }).click();
-    await expect(page.getByRole("status")).toHaveText("Settings saved.");
+    await expect(page.getByText("Settings saved.")).toBeVisible();
 
     await page.reload();
     await expect(page.getByLabel(/Keywords/)).toHaveValue("SAP CPI\nSAP BTP");
