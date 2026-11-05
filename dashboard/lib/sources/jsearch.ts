@@ -74,7 +74,16 @@ export function buildQueries(keywords: string[], locations: string[]): SearchQue
     else regions.set(location.trim(), { label: location.trim() });
   }
 
-  const unique = [...new Map(keywords.map((keyword) => [keyword.trim().toLowerCase(), keyword.trim()])).values()];
+  // Keeps the first spelling of a keyword that's listed twice, so it only uses one request.
+  const seen = new Set<string>();
+  const unique = keywords
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => {
+      const key = keyword.toLowerCase();
+      if (!keyword || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   return unique.flatMap((keyword) =>
     [...regions.values()].map(({ label, country }) => ({
       query: label.toLowerCase() === "remote" ? `${keyword} remote` : `${keyword} in ${label}`,
