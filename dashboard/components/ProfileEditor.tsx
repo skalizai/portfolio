@@ -102,7 +102,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
     }).catch(() => null);
 
     if (response?.ok) {
-      setStatus({ kind: "saved", message: "Profile saved." });
+      setStatus({ kind: "saved", message: cvText === undefined ? "Profile saved." : "New CV and profile saved." });
       return true;
     }
     const body = await response?.json().catch(() => null);
@@ -180,7 +180,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           <div className="mt-4">
             <h3 className="font-semibold">Review changes</h3>
             {review.changes.length === 0 ? (
-              <p className="mt-2 text-sm text-dim">This CV doesn&apos;t change anything in your profile.</p>
+              <p className="mt-2 text-sm text-dim">This CV doesn&apos;t change anything in your profile, but your applications should still use its text.</p>
             ) : (
               <ul className="mt-2 space-y-2">
                 {review.changes.map((change) => (
@@ -197,7 +197,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               <Button type="button" onClick={applyReview} disabled={status.kind === "working"}>
-                Apply selected changes
+                Save new CV and selected changes
               </Button>
               <Button type="button" variant="ghost" onClick={() => setReview(null)}>
                 Discard
@@ -265,9 +265,11 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
         </Section>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={status.kind === "working"}>
+          {/* This button doesn't store a CV, so it waits until the one under review is dealt with. */}
+          <Button type="submit" disabled={status.kind === "working" || review !== null}>
             Save profile
           </Button>
+          {review && <p className="text-sm">Save or discard the new CV at the top of this page first.</p>}
         </div>
       </form>
 
