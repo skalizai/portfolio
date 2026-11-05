@@ -10,7 +10,7 @@ const FIELD = "mt-1 w-full rounded-md border border-line-strong bg-bg px-3 py-2 
 const MAX_CV_BYTES = 25 * 1024 * 1024;
 
 type Status = { kind: "idle" | "working" | "saved" | "error"; message?: string };
-type Review = { proposed: Profile; changes: Change[]; selected: Set<string>; cvText: string };
+type Review = { proposed: Profile; changes: Change[]; selected: Set<string> };
 
 const toLines = (items: string[]) => items.join("\n");
 const fromLines = (value: string) =>
@@ -102,7 +102,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
     }).catch(() => null);
 
     if (response?.ok) {
-      setStatus({ kind: "saved", message: cvText === undefined ? "Profile saved." : "New CV and profile saved." });
+      setStatus({ kind: "saved", message: "Profile saved." });
       return true;
     }
     const body = await response?.json().catch(() => null);
@@ -143,8 +143,11 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
 
     const changes: Change[] = body.changes;
     const selected = new Set(changes.filter((c) => c.recommended).map((c) => c.id));
-    setReview({ proposed: body.proposed, changes, selected, cvText });
-    setStatus({ kind: "idle" });
+    setReview(changes.length ? { proposed: body.proposed, changes, selected } : null);
+    setStatus({
+      kind: "saved",
+      message: changes.length ? "Your new CV is saved. Choose below what to change in your profile." : "Your new CV is saved. It doesn't change anything in your profile.",
+    });
   }
 
   function toggle(id: string) {
@@ -160,7 +163,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
   async function applyReview() {
     if (!review) return;
     const next = applyChanges(profile, review.proposed, review.changes, review.selected);
-    if (await save(next, review.cvText)) {
+    if (await save(next)) {
       setProfile(next);
       setReview(null);
     }
@@ -170,7 +173,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
     <div className="mt-6 space-y-6">
       <section className="rounded-xl border border-line bg-surface p-4">
         <h2 className="text-lg font-semibold">Update from a new CV</h2>
-        <p className="mt-1 text-sm text-dim">You&apos;ll review every change before anything is saved. Your target titles and preferences won&apos;t change.</p>
+        <p className="mt-1 text-sm text-dim">Your CV is saved as soon as it&apos;s read, and you choose what changes in your profile. Your target titles and preferences won&apos;t change.</p>
         <label className="mt-3 block text-sm">
           CV (PDF or Word)
           <input className={FIELD} type="file" accept={CV_FILE_TYPES} onChange={onCvSelected} disabled={status.kind === "working"} />
@@ -179,10 +182,8 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
         {review && (
           <div className="mt-4">
             <h3 className="font-semibold">Review changes</h3>
-            {review.changes.length === 0 ? (
-              <p className="mt-2 text-sm text-dim">This CV doesn&apos;t change anything in your profile, but your applications should still use its text.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
+            <p className="mt-1 text-sm text-dim">Your CV is already saved. These are optional changes to your profile.</p>
+            <ul className="mt-2 space-y-2">
                 {review.changes.map((change) => (
                   <li key={change.id}>
                     <label className="flex items-start gap-2 text-sm">
@@ -193,14 +194,13 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
                     </label>
                   </li>
                 ))}
-              </ul>
-            )}
+            </ul>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button type="button" onClick={applyReview} disabled={status.kind === "working"}>
-                Save new CV and selected changes
+                Apply selected changes
               </Button>
               <Button type="button" variant="ghost" onClick={() => setReview(null)}>
-                Discard
+                Keep my profile as it is
               </Button>
             </div>
           </div>
@@ -265,11 +265,9 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
         </Section>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* This button doesn't store a CV, so it waits until the one under review is dealt with. */}
-          <Button type="submit" disabled={status.kind === "working" || review !== null}>
+          <Button type="submit" disabled={status.kind === "working"}>
             Save profile
           </Button>
-          {review && <p className="text-sm">Save or discard the new CV at the top of this page first.</p>}
         </div>
       </form>
 

@@ -38,6 +38,11 @@ const APPLY_INSTRUCTIONS = [
 const NOT_APPLYING = /\b(adjustments?|accommodations?|accessib\w*|disabilit\w*|suspicious|fraud\w*|scam\w*|verify|authentic\w*|questions?|queries|assistance|help|complaints?|privacy|concerns?|issues?|problems?|difficult\w*|request|contact us|get in touch)\b/i;
 const IGNORED_EMAIL = /^(no-?reply|do-?not-?reply|privacy|dpo|legal|abuse|support|info@example)|@(example|email|domain)\./i;
 
+/** One plain address, which rules out lists or headers slipped in through a listing. */
+export function isValidEmail(value: string): boolean {
+  return /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/.test(value);
+}
+
 /** Job text is untrusted, and these links get opened later, so only web links are kept. */
 export function safeUrl(value: string | null | undefined): string | null {
   if (!value) return null;

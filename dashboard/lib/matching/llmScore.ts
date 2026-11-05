@@ -72,8 +72,8 @@ export type ScorableJob = {
 };
 
 /** Leaves out contact details, since scoring doesn't need them. */
-export function scoringPrompt(job: ScorableJob, profile: Profile): string {
-  const facts = { ...profile, name: undefined, contact: undefined };
+export function scoringPrompt(job: ScorableJob, profile: Profile, education: string[] = []): string {
+  const facts = { ...profile, name: undefined, contact: undefined, education };
   const details = { title: job.title, company: job.company, location: job.location, workMode: job.workMode, employmentType: job.employmentType };
   return `Candidate profile:\n${JSON.stringify(facts)}\n\nJob:\n${JSON.stringify(details)}\n\n<job_description>\n${job.description}\n</job_description>`;
 }
@@ -83,8 +83,8 @@ export type LlmOutcome =
   | { kind: "declined"; inputTokens: number; outputTokens: number }
   | { kind: "unreadable"; inputTokens: number; outputTokens: number };
 
-export async function llmScore(job: ScorableJob, profile: Profile, call: ScoreCall = callClaude): Promise<LlmOutcome> {
-  const response = await call(SCORING_SYSTEM_PROMPT, scoringPrompt(job, profile));
+export async function llmScore(job: ScorableJob, profile: Profile, call: ScoreCall = callClaude, education: string[] = []): Promise<LlmOutcome> {
+  const response = await call(SCORING_SYSTEM_PROMPT, scoringPrompt(job, profile, education));
   const tokens = { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
 
   if (response.stop_reason === "refusal") return { kind: "declined", ...tokens };

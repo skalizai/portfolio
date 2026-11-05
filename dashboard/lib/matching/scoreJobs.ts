@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getStructuredCv, type ParseCall } from "@/lib/apply/parseCv";
 import { db } from "@/lib/db";
 import { llmModel } from "@/lib/llm";
 import { hardFilter } from "@/lib/matching/filters";
@@ -36,7 +37,7 @@ function blockingError(error: unknown): string | null {
   return null;
 }
 
-export async function scoreNewJobs(options: { now?: Date; call?: ScoreCall } = {}): Promise<ScoreReport> {
+export async function scoreNewJobs(options: { now?: Date; call?: ScoreCall; parse?: ParseCall } = {}): Promise<ScoreReport> {
   const now = options.now ?? new Date();
   const startedAt = Date.now();
   const report: ScoreReport = { scored: 0, ruledOut: 0, remaining: 0, more: false, capReached: false, inputTokens: 0, outputTokens: 0, errors: [] };
@@ -89,6 +90,9 @@ export async function scoreNewJobs(options: { now?: Date; call?: ScoreCall } = {
     return report;
   }
 
+  // Parsed only once, and only when there's something to score. Scoring still works without it.
+  const education = queue.length ? ((await getStructuredCv(options.parse).catch(() => null))?.education ?? []) : [];
+
   let next = 0;
   let blocked = false;
   let failed = 0;
@@ -96,7 +100,7 @@ export async function scoreNewJobs(options: { now?: Date; call?: ScoreCall } = {
     while (next < queue.length && !blocked && Date.now() - startedAt < STOP_STARTING_AFTER_MS) {
       const job = queue[next++]!;
       try {
-        const outcome = await llmScore(job, profile, options.call);
+        const outcome = await llmScore(job, profile, options.call, education);
         report.inputTokens += outcome.inputTokens;
         report.outputTokens += outcome.outputTokens;
         const tokens = { inputTokens: outcome.inputTokens, outputTokens: outcome.outputTokens };

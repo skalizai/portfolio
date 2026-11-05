@@ -19,6 +19,15 @@ export async function getProfile(): Promise<StoredProfile | null> {
   return { profile, cvText: row.cvText, updatedAt: row.updatedAt };
 }
 
+/**
+ * Stores an uploaded CV straight away. Written directly so this doesn't change updatedAt, because a
+ * new CV shouldn't re-score every job until you've chosen what changes in your profile.
+ */
+export async function saveCvText(cvText: string): Promise<void> {
+  await db().$executeRaw`UPDATE "jobmatch"."Profile" SET "cvText" = ${cvText}, "cvStructured" = NULL`;
+  await db().auditLog.create({ data: { action: "cv.saved", payload: { characters: cvText.length } } });
+}
+
 /** Leaves the stored CV text alone unless a new one is passed. */
 export async function saveProfile(profile: Profile, cvText?: string): Promise<Date> {
   return db().$transaction(async (tx) => {

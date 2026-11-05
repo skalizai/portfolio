@@ -246,6 +246,21 @@ describe("preparing drafts", () => {
     expect(parse).toHaveBeenCalledTimes(2);
   });
 
+  it("stores an uploaded CV at once, without changing the profile's date or re-scoring", async () => {
+    const { saveCvText, getProfile } = await import("@/lib/profile/store");
+    await getStructuredCv(parse);
+    const before = (await db().profile.findFirstOrThrow()).updatedAt;
+
+    await saveCvText("The corrected CV");
+
+    const row = await db().profile.findFirstOrThrow();
+    expect(row).toMatchObject({ cvText: "The corrected CV", cvStructured: null });
+    expect(row.updatedAt).toEqual(before);
+    expect((await getProfile())?.profile.name).toBe("Test Person");
+    await getStructuredCv(parse);
+    expect(parse).toHaveBeenCalledTimes(2);
+  });
+
   it("warns about a repeat application at the same company", async () => {
     await addJob("a", { company: "Acme", title: "SAP Lead" });
     await addJob("b", { company: "ACME", title: "sap lead" });

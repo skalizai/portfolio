@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApplyDrawer } from "@/components/ApplyDrawer";
+import { JobEmail } from "@/components/JobEmail";
 import { Button } from "@/components/ui/button";
 import type { PrepareResult } from "@/lib/apply/prepare";
 import type { FetchReport } from "@/lib/jobs/fetchJobs";
@@ -70,12 +71,6 @@ function statusLabel(job: JobRow): string | null {
   return job.state === "SAVED" ? "Saved for later" : null;
 }
 
-/** Opens your email program with the address and subject filled in. You attach the files and send. */
-export function mailtoLink(email: string, jobTitle: string, applicantName: string): string {
-  const subject = applicantName ? `Application — ${jobTitle} — ${applicantName}` : `Application — ${jobTitle}`;
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
-}
-
 function JobCard({
   job,
   applicantName,
@@ -85,6 +80,7 @@ function JobCard({
   onPrepare,
   onOpen,
   onState,
+  onChanged,
 }: {
   job: JobRow;
   applicantName: string;
@@ -94,6 +90,7 @@ function JobCard({
   onPrepare: () => void;
   onOpen: (applicationId: string) => void;
   onState: (state: "ACTIVE" | "SAVED" | "DISMISSED") => void;
+  onChanged: () => void;
 }) {
   const { match, application } = job;
   const status = statusLabel(job);
@@ -139,21 +136,16 @@ function JobCard({
       </div>
 
       <div className="mt-3 border-t border-line pt-3 text-sm">
-        {job.applyEmail ? (
-          <>
-            <p className="break-words">
-              <span className="text-dim">Email to apply: </span>
-              <a className="font-semibold underline" href={mailtoLink(job.applyEmail, job.title, applicantName)}>
-                {job.applyEmail}
-              </a>
-            </p>
-            {job.applyEmailContext && (
-              <p className="mt-1 break-words text-dim">The listing says: &ldquo;{job.applyEmailContext}&rdquo;</p>
-            )}
-          </>
-        ) : (
-          <p className="text-dim">No email to apply to in this listing. Apply through Open listing.</p>
-        )}
+        <JobEmail
+          key={job.applyEmail ?? "none"}
+          jobId={job.id}
+          jobName={`${job.title} at ${job.company}`}
+          jobTitle={job.title}
+          email={job.applyEmail}
+          listingContext={job.applyEmailContext}
+          applicantName={applicantName}
+          onSaved={onChanged}
+        />
       </div>
 
       {match && (
@@ -384,6 +376,7 @@ export function JobsBoard({
             setQueueIndex(0);
           }}
           onState={(state) => setJobState(job, state)}
+          onChanged={() => router.refresh()}
         />
       ))}
     </ul>

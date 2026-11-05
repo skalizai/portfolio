@@ -1,3 +1,4 @@
+import { isValidEmail } from "@/lib/apply/channelDetect";
 import { TailoredCvSchema, type TailoredCv } from "@/lib/apply/cvSchema";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -7,8 +8,6 @@ import { getSearchSettings } from "@/lib/search/settings";
 export const UNDO_MS = 60_000;
 /** Minimum gap between emails to the same company's domain. */
 export const DOMAIN_GAP_MS = 120_000;
-
-const VALID_EMAIL = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/;
 
 export type OutgoingEmail = { to: string; subject: string; text: string; cv: TailoredCv };
 export type Deliver = (email: OutgoingEmail) => Promise<{ messageId: string }>;
@@ -56,7 +55,7 @@ function emailProblem(application: {
   if (application.submittedAt) return "You've already applied for this job.";
   if (application.sendAt) return "This is already waiting to send.";
   if (application.channel !== "EMAIL" || !application.job.applyEmail) return "This job isn't applied for by email.";
-  if (!VALID_EMAIL.test(application.job.applyEmail)) return "The listing's email address doesn't look valid.";
+  if (!isValidEmail(application.job.applyEmail)) return "The listing's email address doesn't look valid.";
   if (!application.coverLetter?.trim()) return "This draft has no cover letter.";
   if (!TailoredCvSchema.safeParse(application.tailoredCv).success) return "This draft has no CV.";
   return null;

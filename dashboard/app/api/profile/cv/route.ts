@@ -4,7 +4,7 @@ import { requireApiSession } from "@/lib/auth";
 import { CvExtractionError, extractProfile } from "@/lib/cv/extractProfile";
 import { diffProfiles } from "@/lib/profile/diff";
 import { EMPTY_PROFILE } from "@/lib/profile/schema";
-import { getProfile } from "@/lib/profile/store";
+import { getProfile, saveCvText } from "@/lib/profile/store";
 
 export const maxDuration = 120;
 
@@ -14,7 +14,7 @@ function fail(error: string, status: number) {
   return Response.json({ error }, { status });
 }
 
-/** Extracts a profile from CV text and returns what would change. Saves nothing. */
+/** Saves the CV's text, and returns what it would change in your profile, which you then choose from. */
 export async function POST(request: Request) {
   const denied = await requireApiSession();
   if (denied) return denied;
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
 
   try {
     const proposed = await extractProfile(body.data.text, current);
+    await saveCvText(body.data.text);
     return Response.json({ proposed, changes: diffProfiles(current, proposed) });
   } catch (error) {
     if (error instanceof CvExtractionError) return fail(error.message, 422);

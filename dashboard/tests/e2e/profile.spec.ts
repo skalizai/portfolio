@@ -124,21 +124,12 @@ test.describe.serial("profile", () => {
     await expect.poll(() => sentText).toBe("Sample Word CV text");
   });
 
-  test("a CV that changes nothing in the profile is still saved", async ({ page }) => {
-    await page.route("**/api/profile/cv", (route) => route.fulfill({ json: { proposed: { name: "Test Person", headline: "", location: "", yearsExperience: 0, currentRole: "", leadership: "", contact: { email: "", phone: "", linkedinUrl: "", portfolioUrl: "" }, coreSkills: [], modules: [], industries: [], certifications: [], targetTitles: [], preferences: { locations: [], workModes: [], employmentTypes: [], minSeniority: "", excludeKeywords: [], salaryFloorAED: null, visaSponsorshipLocations: [] } }, changes: [] } }));
-
+  test("a CV that changes nothing says it's saved, with nothing further to do", async ({ page }) => {
+    await page.route("**/api/profile/cv", (route) => route.fulfill({ json: { proposed: {}, changes: [] } }));
     await page.goto("/profile");
     await page.getByLabel("CV (PDF or Word)").setInputFiles({ name: "cv.docx", mimeType: DOCX_TYPE, buffer: await minimalDocx("Unchanged CV") });
-    await expect(page.getByText("doesn't change anything in your profile")).toBeVisible();
-
-    let saved: unknown = null;
-    await page.route("**/api/profile", async (route) => {
-      saved = route.request().postDataJSON().cvText;
-      await route.fulfill({ json: { updatedAt: new Date().toISOString() } });
-    });
-    await page.getByRole("button", { name: "Save new CV and selected changes" }).click();
-    await expect(page.getByRole("status")).toHaveText("New CV and profile saved.");
-    expect(saved).toBe("Unchanged CV");
+    await expect(page.getByRole("status")).toHaveText("Your new CV is saved. It doesn't change anything in your profile.");
+    await expect(page.getByRole("button", { name: "Apply selected changes" })).toBeHidden();
   });
 
   test("unreadable and unsupported files get a clear error", async ({ page }) => {
@@ -185,13 +176,9 @@ test.describe.serial("profile", () => {
     await expect(page.getByRole("checkbox", { name: /Remove: BTP/ })).not.toBeChecked();
     expect(sentText).toContain("Sample CV text");
 
-    // The other save button doesn't store a CV, so it can't be used by mistake here.
-    await expect(page.getByRole("button", { name: "Save profile" })).toBeDisabled();
-    await expect(page.getByText("Save or discard the new CV")).toBeVisible();
-
-    await page.getByRole("button", { name: "Save new CV and selected changes" }).click();
-    await expect(page.getByRole("status")).toHaveText("New CV and profile saved.");
-    await expect(page.getByRole("button", { name: "Save profile" })).toBeEnabled();
+    await expect(page.getByRole("status")).toContainText("Your new CV is saved");
+    await page.getByRole("button", { name: "Apply selected changes" }).click();
+    await expect(page.getByRole("status")).toHaveText("Profile saved.");
 
     await page.reload();
     await expect(page.getByLabel(/Core skills/)).toHaveValue("SAP CPI\nBTP\nABAP");

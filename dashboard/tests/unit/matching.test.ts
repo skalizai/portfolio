@@ -192,6 +192,10 @@ describe("llmScore", () => {
     expect((await llmScore(FIXTURE_JOBS[0]!, PROFILE, reply({ stop_reason: "max_tokens" }))).kind).toBe("unreadable");
   });
 
+  it("includes education from the CV, so a degree isn't reported as missing", () => {
+    expect(scoringPrompt(FIXTURE_JOBS[0]!, PROFILE, ["BSc Computer Science"])).toContain("BSc Computer Science");
+  });
+
   it("doesn't send name or contact details, and marks the listing as untrusted", () => {
     const prompt = scoringPrompt(FIXTURE_JOBS[0]!, PROFILE);
     expect(prompt).not.toContain("person@example.com");
