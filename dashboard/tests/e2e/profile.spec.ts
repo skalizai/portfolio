@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
+import JSZip from "jszip";
 import { encode } from "next-auth/jwt";
 import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET } from "./constants";
 
@@ -31,6 +32,26 @@ function minimalPdf(text: string): Buffer {
   body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(body);
 }
+
+/** A minimal Word document containing a known sentence. */
+async function minimalDocx(text: string): Promise<Buffer> {
+  const zip = new JSZip();
+  zip.file(
+    "[Content_Types].xml",
+    '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+  );
+  zip.file(
+    "_rels/.rels",
+    '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+  );
+  zip.file(
+    "word/document.xml",
+    `<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`,
+  );
+  return zip.generateAsync({ type: "nodebuffer" });
+}
+
+const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 test.describe.serial("profile", () => {
   test.beforeEach(async ({ context }) => {
@@ -69,7 +90,7 @@ test.describe.serial("profile", () => {
 
   test("without an API key the CV step explains what's missing", async ({ page }) => {
     await page.goto("/profile");
-    await page.getByLabel("CV (PDF)").setInputFiles({
+    await page.getByLabel("CV (PDF or Word)").setInputFiles({
       name: "cv.pdf",
       mimeType: "application/pdf",
       buffer: minimalPdf("Sample CV text"),
@@ -79,12 +100,42 @@ test.describe.serial("profile", () => {
 
   test("a file that isn't a PDF gets a clear error", async ({ page }) => {
     await page.goto("/profile");
-    await page.getByLabel("CV (PDF)").setInputFiles({
+    await page.getByLabel("CV (PDF or Word)").setInputFiles({
       name: "cv.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from("not a pdf"),
     });
     await expect(page.getByRole("status")).toHaveText("That file couldn't be read as a PDF.");
+  });
+
+  test("a Word CV's text is read in the browser and only the text is sent", async ({ page }) => {
+    let sentText = "";
+    await page.route("**/api/profile/cv", async (route) => {
+      sentText = route.request().postDataJSON().text;
+      await route.fulfill({ json: { proposed: {}, changes: [] } });
+    });
+
+    await page.goto("/profile");
+    await page.getByLabel("CV (PDF or Word)").setInputFiles({
+      name: "cv.docx",
+      mimeType: DOCX_TYPE,
+      buffer: await minimalDocx("Sample Word CV text"),
+    });
+    await expect.poll(() => sentText).toBe("Sample Word CV text");
+  });
+
+  test("unreadable and unsupported files get a clear error", async ({ page }) => {
+    await page.goto("/profile");
+    const upload = page.getByLabel("CV (PDF or Word)");
+
+    await upload.setInputFiles({ name: "cv.docx", mimeType: DOCX_TYPE, buffer: Buffer.from("not a zip") });
+    await expect(page.getByRole("status")).toHaveText("That file couldn't be read as a Word document.");
+
+    await upload.setInputFiles({ name: "cv.doc", mimeType: "application/msword", buffer: Buffer.from("old") });
+    await expect(page.getByRole("status")).toContainText("Older .doc files can't be read");
+
+    await upload.setInputFiles({ name: "cv.txt", mimeType: "text/plain", buffer: Buffer.from("text") });
+    await expect(page.getByRole("status")).toHaveText("Please choose a PDF or Word (.docx) file.");
   });
 
   test("a new CV shows its changes and saves only the ones selected", async ({ page }) => {
@@ -107,7 +158,7 @@ test.describe.serial("profile", () => {
     });
 
     await page.goto("/profile");
-    await page.getByLabel("CV (PDF)").setInputFiles({
+    await page.getByLabel("CV (PDF or Word)").setInputFiles({
       name: "cv.pdf",
       mimeType: "application/pdf",
       buffer: minimalPdf("Sample CV text"),

@@ -2,7 +2,7 @@
 
 import { useState, type ChangeEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { extractPdfText } from "@/lib/cv/pdfText";
+import { CV_FILE_TYPES, readCv } from "@/lib/cv/readCv";
 import { applyChanges, type Change } from "@/lib/profile/diff";
 import type { Profile } from "@/lib/profile/schema";
 
@@ -121,15 +121,12 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
 
     setReview(null);
     setStatus({ kind: "working", message: "Reading your CV…" });
-    const cvText = await extractPdfText(file).catch(() => null);
-    if (cvText === null) {
-      setStatus({ kind: "error", message: "That file couldn't be read as a PDF." });
+    const result = await readCv(file);
+    if ("error" in result) {
+      setStatus({ kind: "error", message: result.error });
       return;
     }
-    if (!cvText) {
-      setStatus({ kind: "error", message: "No text found in that PDF. It may be a scanned image." });
-      return;
-    }
+    const cvText = result.text;
 
     setStatus({ kind: "working", message: "Comparing it with your profile. This can take a minute…" });
     const response = await fetch("/api/profile/cv", {
@@ -175,8 +172,8 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
         <h2 className="text-lg font-semibold">Update from a new CV</h2>
         <p className="mt-1 text-sm text-dim">You&apos;ll review every change before anything is saved. Your target titles and preferences won&apos;t change.</p>
         <label className="mt-3 block text-sm">
-          CV (PDF)
-          <input className={FIELD} type="file" accept="application/pdf" onChange={onCvSelected} disabled={status.kind === "working"} />
+          CV (PDF or Word)
+          <input className={FIELD} type="file" accept={CV_FILE_TYPES} onChange={onCvSelected} disabled={status.kind === "working"} />
         </label>
 
         {review && (
