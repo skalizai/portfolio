@@ -73,6 +73,8 @@ describe("decideAccess", () => {
   it("lets the cron secret open the fetch route and nothing else", () => {
     const bearer = `Bearer ${CRON}`;
     expect(decide("/api/jobs/fetch", null, bearer)).toBe("allow");
+    expect(decide("/api/jobs/score", null, bearer)).toBe("allow");
+    expect(decide("/api/jobs/score", null, "Bearer wrong")).toBe("unauthorized");
     expect(decide("/api/jobs/fetch", null, "Bearer wrong")).toBe("unauthorized");
     expect(decide("/api/jobs/fetch")).toBe("unauthorized");
     expect(decide("/api/stats", null, bearer)).toBe("unauthorized");

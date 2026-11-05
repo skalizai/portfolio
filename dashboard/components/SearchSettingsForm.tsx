@@ -24,11 +24,13 @@ export function SearchSettingsForm({
   initial,
   requestsPerDay,
 }: {
-  initial: { keywords: string[]; locations: string[] };
+  initial: { keywords: string[]; locations: string[]; minScore: number; scoreDailyCap: number };
   requestsPerDay: number;
 }) {
   const [keywords, setKeywords] = useState(initial.keywords.join("\n"));
   const [locations, setLocations] = useState(initial.locations.join("\n"));
+  const [minScore, setMinScore] = useState(String(initial.minScore));
+  const [scoreDailyCap, setScoreDailyCap] = useState(String(initial.scoreDailyCap));
   const [message, setMessage] = useState("");
 
   const searches = buildQueries(fromLines(keywords), fromLines(locations)).length;
@@ -40,11 +42,17 @@ export function SearchSettingsForm({
     const response = await fetch("/api/settings/search", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ keywords: fromLines(keywords), locations: fromLines(locations) }),
+      body: JSON.stringify({
+        keywords: fromLines(keywords),
+        locations: fromLines(locations),
+        // An empty box becomes null, which the server rejects with a clear message.
+        minScore: minScore.trim() ? Number(minScore) : null,
+        scoreDailyCap: scoreDailyCap.trim() ? Number(scoreDailyCap) : null,
+      }),
     }).catch(() => null);
 
     if (response?.ok) {
-      setMessage("Search settings saved.");
+      setMessage("Settings saved.");
       return;
     }
     const body = await response?.json().catch(() => null);
@@ -73,8 +81,23 @@ export function SearchSettingsForm({
         <p className="mt-1 text-sm text-dim">Short keywords find more. Long, very specific phrases often find nothing.</p>
       </section>
 
+      <section className="rounded-xl border border-line bg-surface p-4">
+        <h2 className="text-lg font-semibold">Scoring</h2>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <label className="block text-sm">
+            Minimum score to show as a match
+            <input className={FIELD} type="number" min={0} max={100} value={minScore} onChange={(e) => setMinScore(e.target.value)} />
+          </label>
+          <label className="block text-sm">
+            Most jobs Claude may score per day
+            <input className={FIELD} type="number" min={0} max={500} value={scoreDailyCap} onChange={(e) => setScoreDailyCap(e.target.value)} />
+          </label>
+        </div>
+        <p className="mt-3 text-sm text-dim">The daily limit controls what scoring can spend. Anything over it waits until the next day.</p>
+      </section>
+
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit">Save search settings</Button>
+        <Button type="submit">Save settings</Button>
         <p role="status" className="min-h-5 text-sm">
           {message}
         </p>

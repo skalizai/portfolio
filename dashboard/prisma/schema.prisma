@@ -166,6 +166,7 @@ model SearchConfig {
   sourcesEnabled   String[]
   schedule         String   @default("0 */2 * * *")
   dailyApplyCap    Int      @default(15)
+  scoreDailyCap    Int      @default(50)
   screeningAnswers Json     @default("{}")
   updatedAt        DateTime @updatedAt
 

@@ -19,24 +19,24 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default async function MatchesPage() {
-  const { jobs, totalJobs, newJobs, applicationsThisWeek, lastSearchAt } = await getJobsOverview();
+  const { matches, below, waiting, minScore, newMatches, averageScore, applicationsThisWeek, responseRate, lastSearchAt } = await getJobsOverview();
 
   return (
     <>
       <h1 className="text-2xl font-semibold">Matches</h1>
       <p className="mt-2 text-dim">
-        Scoring isn&apos;t switched on yet, so this lists every job found, newest first.
-        {totalJobs > jobs.length ? ` Showing the latest ${jobs.length} of ${totalJobs}.` : ""}
+        Jobs scoring {minScore} or more against your profile, best first.{" "}
+        {lastSearchAt ? `Last search: ${timeFormat.format(lastSearchAt)} Gulf time.` : "No search has run yet."}
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="New in 24 hours" value={newJobs} />
-        <Stat label="Jobs found" value={totalJobs} />
+        <Stat label="New matches today" value={newMatches} />
+        <Stat label="Average score" value={averageScore ?? "None yet"} />
         <Stat label="Applications this week" value={applicationsThisWeek} />
-        <Stat label="Last search, Gulf time" value={lastSearchAt ? timeFormat.format(lastSearchAt) : "Not yet"} />
+        <Stat label="Response rate" value={responseRate === null ? "None yet" : `${responseRate}%`} />
       </dl>
 
-      <JobsBoard jobs={jobs} />
+      <JobsBoard matches={matches} below={below} waiting={waiting} minScore={minScore} />
     </>
   );
 }

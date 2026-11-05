@@ -32,8 +32,8 @@ export function isValidCronRequest(
   return safeEqual(authorization, `Bearer ${secret}`);
 }
 
-/** The scheduler has no browser session, so this one path also accepts the cron secret. */
-const CRON_PATH = "/api/jobs/fetch";
+/** The scheduler has no browser session, so these paths alone also accept the cron secret. */
+const CRON_PATHS = ["/api/jobs/fetch", "/api/jobs/score"];
 
 export function decideAccess(input: {
   pathname: string;
@@ -53,7 +53,7 @@ export function decideAccess(input: {
   if (pathname === "/login") return signedIn ? "redirect-home" : "allow";
   if (signedIn) return "allow";
 
-  if (pathname === CRON_PATH && isValidCronRequest(authorization, cronSecret)) return "allow";
+  if (CRON_PATHS.includes(pathname) && isValidCronRequest(authorization, cronSecret)) return "allow";
 
   const isApi = pathname === "/api" || pathname.startsWith("/api/");
   return isApi ? "unauthorized" : "redirect-login";

@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { JobRow } from "@/lib/jobs/overview";
 import type { FetchReport } from "@/lib/jobs/fetchJobs";
+import type { JobRow } from "@/lib/jobs/overview";
+import type { ScoreReport } from "@/lib/matching/scoreJobs";
 
 const CHANNELS: Record<JobRow["applyChannel"], string> = {
   EMAIL: "Apply by email",
@@ -14,49 +15,154 @@ const CHANNELS: Record<JobRow["applyChannel"], string> = {
   UNKNOWN: "Check the listing",
 };
 
+const VERDICTS: Record<NonNullable<JobRow["match"]>["verdict"], string> = {
+  STRONG: "Strong match",
+  GOOD: "Good match",
+  WEAK: "Weak match",
+  REJECT: "Not a match",
+};
+
 const FIELD = "w-full rounded-md border border-line-strong bg-bg px-3 py-2 text-sm text-txt";
 
 // A fixed locale and time zone, so the server and browser render the same text.
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Dubai" });
 
-function refreshMessage(report: FetchReport): string {
+function searchMessage(report: FetchReport): string {
   const sources = Object.values(report.sources);
-  const errors = sources.flatMap((source) => source.errors);
-  if (errors.length) return errors[0]!;
-  if (!sources.length) return "No job source is set up yet.";
-  if (sources.every((source) => source.requests === 0)) return "Today's search allowance is used up. The next search runs tomorrow.";
-  if (!report.inserted) return "Search finished. No new jobs this time.";
-  return `Search finished. ${report.inserted} new ${report.inserted === 1 ? "job" : "jobs"}.`;
+  const error = sources.flatMap((source) => source.errors)[0];
+  if (error) return error;
+  if (!sources.length) return "No job source is set up.";
+  if (sources.every((source) => source.requests === 0)) return "Today's search allowance is used up.";
+  return report.inserted ? `Found ${report.inserted} new ${report.inserted === 1 ? "job" : "jobs"}.` : "No new jobs.";
 }
 
-export function JobsBoard({ jobs }: { jobs: JobRow[] }) {
+function scoreMessage(report: ScoreReport): string {
+  const parts = [`Scored ${report.scored} ${report.scored === 1 ? "job" : "jobs"}.`];
+  if (report.capReached) parts.push("Today's scoring limit is reached, so the rest will wait until tomorrow.");
+  return [...parts, ...report.errors].join(" ");
+}
+
+function JobCard({ job }: { job: JobRow }) {
+  const { match } = job;
+  return (
+    <li className="rounded-xl border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-64">
+          <h3 className="font-semibold break-words">{job.title}</h3>
+          <p className="mt-1 text-sm break-words">
+            {job.company}
+            {job.location ? ` · ${job.location}` : ""}
+          </p>
+          <p className="mt-1 text-sm text-dim">
+            {[
+              CHANNELS[job.applyChannel],
+              job.workMode,
+              job.employmentType,
+              job.publisher && `via ${job.publisher}`,
+              job.postedAt && `posted ${dateFormat.format(new Date(job.postedAt))}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {match && (
+            <p className="text-right text-sm">
+              <span className="block text-xl font-semibold">{match.score}</span>
+              <span className="text-dim">{VERDICTS[match.verdict]}</span>
+            </p>
+          )}
+          <Button asChild variant="ghost" size="sm" className="border border-line-strong">
+            <a href={job.url} target="_blank" rel="noopener noreferrer">
+              Open listing <span className="sr-only">for {job.title} at {job.company}, opens in a new tab</span>
+            </a>
+          </Button>
+        </div>
+      </div>
+
+      {match && (
+        <div className="mt-3 space-y-1 border-t border-line pt-3 text-sm">
+          <p className="break-words">{match.reasoning}</p>
+          {match.matchedSkills.length > 0 && (
+            <p className="break-words">
+              <span className="text-dim">You have: </span>
+              {match.matchedSkills.join(", ")}
+            </p>
+          )}
+          {match.missingSkills.length > 0 && (
+            <p className="break-words">
+              <span className="text-dim">Missing: </span>
+              {match.missingSkills.join(", ")}
+            </p>
+          )}
+          {match.redFlags.length > 0 && (
+            <p className="break-words">
+              <span className="text-dim">Watch out: </span>
+              {match.redFlags.join(" ")}
+            </p>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function JobList({ jobs }: { jobs: JobRow[] }) {
+  return (
+    <ul className="mt-3 grid gap-3">
+      {jobs.map((job) => (
+        <JobCard key={job.id} job={job} />
+      ))}
+    </ul>
+  );
+}
+
+function Collapsed({ title, jobs }: { title: string; jobs: JobRow[] }) {
+  if (!jobs.length) return null;
+  return (
+    <details className="mt-4 rounded-xl border border-line p-4">
+      <summary className="cursor-pointer font-semibold">
+        {title} ({jobs.length})
+      </summary>
+      <JobList jobs={jobs} />
+    </details>
+  );
+}
+
+export function JobsBoard({ matches, below, waiting, minScore }: { matches: JobRow[]; below: JobRow[]; waiting: JobRow[]; minScore: number }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return jobs.filter(
+  const needle = query.trim().toLowerCase();
+  const visible = (jobs: JobRow[]) =>
+    jobs.filter(
       (job) =>
         (!channel || job.applyChannel === channel) &&
         (!needle || [job.title, job.company, job.location].some((text) => text?.toLowerCase().includes(needle))),
     );
-  }, [jobs, query, channel]);
+
+  async function post<T>(path: string): Promise<T | null> {
+    const response = await fetch(path, { method: "POST" }).catch(() => null);
+    return response?.ok ? ((await response.json()) as T) : null;
+  }
 
   async function refresh() {
     setRefreshing(true);
-    setMessage("Searching…");
-    const response = await fetch("/api/jobs/fetch", { method: "POST" }).catch(() => null);
+    setMessage("Searching for jobs…");
+    const search = await post<FetchReport>("/api/jobs/fetch");
+    const found = search ? searchMessage(search) : "The search didn't finish.";
+
+    setMessage(`${found} Scoring…`);
+    const score = await post<ScoreReport>("/api/jobs/score");
+    setMessage(`${found} ${score ? scoreMessage(score) : "Scoring didn't finish, so please try again."}`);
     setRefreshing(false);
-    if (!response?.ok) {
-      setMessage("The search didn't finish. Please try again.");
-      return;
-    }
-    setMessage(refreshMessage(await response.json()));
     router.refresh();
   }
+
+  const shownMatches = visible(matches);
 
   return (
     <section aria-label="Jobs" className="mt-6">
@@ -84,43 +190,17 @@ export function JobsBoard({ jobs }: { jobs: JobRow[] }) {
         {message}
       </p>
 
-      {visible.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-line bg-surface p-4 text-dim">
-          {jobs.length ? "No jobs match these filters." : "No jobs yet. Use Refresh now, or wait for the morning search."}
-        </p>
+      <h2 className="mt-2 text-lg font-semibold">Your matches</h2>
+      {shownMatches.length ? (
+        <JobList jobs={shownMatches} />
       ) : (
-        <ul className="mt-2 grid gap-3">
-          {visible.map((job) => (
-            <li key={job.id} className="rounded-xl border border-line bg-surface p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1 basis-64">
-                  <h2 className="font-semibold break-words">{job.title}</h2>
-                  <p className="mt-1 text-sm break-words">
-                    {job.company}
-                    {job.location ? ` · ${job.location}` : ""}
-                  </p>
-                  <p className="mt-1 text-sm text-dim">
-                    {[
-                      CHANNELS[job.applyChannel],
-                      job.workMode,
-                      job.employmentType,
-                      job.publisher && `via ${job.publisher}`,
-                      job.postedAt && `posted ${dateFormat.format(new Date(job.postedAt))}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-                <Button asChild variant="ghost" size="sm" className="border border-line-strong">
-                  <a href={job.url} target="_blank" rel="noopener noreferrer">
-                    Open listing <span className="sr-only">for {job.title} at {job.company}, opens in a new tab</span>
-                  </a>
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <p className="mt-3 rounded-xl border border-line bg-surface p-4 text-dim">
+          {matches.length ? "No matches fit these filters." : `No jobs have scored ${minScore} or more yet.`}
+        </p>
       )}
+
+      <Collapsed title="Below your minimum score" jobs={visible(below)} />
+      <Collapsed title="Waiting to be scored" jobs={visible(waiting)} />
     </section>
   );
 }

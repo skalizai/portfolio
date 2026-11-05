@@ -32,6 +32,7 @@ const COUNTRIES: Record<string, { country: string; label: string }> = {
   india: { country: "in", label: "India" },
   canada: { country: "ca", label: "Canada" },
   australia: { country: "au", label: "Australia" },
+  "new zealand": { country: "nz", label: "New Zealand" },
 };
 
 const nullableString = z.string().nullish();
@@ -73,7 +74,8 @@ export function buildQueries(keywords: string[], locations: string[]): SearchQue
     else regions.set(location.trim(), { label: location.trim() });
   }
 
-  return keywords.flatMap((keyword) =>
+  const unique = [...new Map(keywords.map((keyword) => [keyword.trim().toLowerCase(), keyword.trim()])).values()];
+  return unique.flatMap((keyword) =>
     [...regions.values()].map(({ label, country }) => ({
       query: label.toLowerCase() === "remote" ? `${keyword} remote` : `${keyword} in ${label}`,
       ...(country ? { country } : {}),

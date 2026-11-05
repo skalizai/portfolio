@@ -331,6 +331,10 @@ describe("morning search pacing", () => {
     vi.unstubAllEnvs();
   });
 
+  it("searches a repeated keyword only once", () => {
+    expect(buildQueries(["SAP Lead", "sap lead "], ["New Zealand"])).toEqual([{ query: "SAP Lead in New Zealand", country: "nz" }]);
+  });
+
   it("sets the country for places added in settings", () => {
     expect(buildQueries(["SAP Lead"], ["Oman", "Muscat"])).toEqual([{ query: "SAP Lead in Oman", country: "om" }]);
   });

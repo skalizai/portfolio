@@ -1,6 +1,6 @@
 name: Fetch jobs
 
-# Asks the deployed dashboard to fetch new jobs every morning at 7:00 Gulf time. The dashboard does the work and
+# Asks the deployed dashboard to fetch and score new jobs every morning at 7:00 Gulf time. The dashboard does the work and
 # holds the API keys; this only needs the two repository secrets below. GitHub may run scheduled
 # jobs a little late, which doesn't matter here.
 on:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: Call the dashboard
         env:
@@ -25,6 +25,15 @@ jobs:
             echo "DASHBOARD_URL or CRON_SECRET isn't set yet, so there is nothing to do."
             exit 0
           fi
-          curl --fail --silent --show-error --max-time 150 -o /dev/null -w "HTTP %{http_code}\n" \
+          curl --fail --silent --show-error --max-time 150 -o /dev/null -w "Fetch: HTTP %{http_code}\n" \
             -X POST "$DASHBOARD_URL/api/jobs/fetch" \
             -H "Authorization: Bearer $CRON_SECRET"
+
+          # Each call scores what it can in about a minute, so keep going while it reports more.
+          for attempt in 1 2 3 4 5 6; do
+            more=$(curl --fail --silent --show-error --max-time 150 \
+              -X POST "$DASHBOARD_URL/api/jobs/score" \
+              -H "Authorization: Bearer $CRON_SECRET" | jq -r '.more')
+            echo "Score $attempt: more=$more"
+            [ "$more" = "true" ] || break
+          done

@@ -21,6 +21,8 @@ const uniqueList = (label: string) =>
 export const SearchSettingsSchema = z.object({
   keywords: uniqueList("Keywords"),
   locations: uniqueList("Countries"),
+  minScore: z.number({ error: "Enter a minimum score" }).int().min(0, "Minimum score must be 0 to 100").max(100, "Minimum score must be 0 to 100"),
+  scoreDailyCap: z.number({ error: "Enter a daily scoring limit" }).int().min(0, "The daily limit must be 0 to 500").max(500, "The daily limit must be 0 to 500"),
 });
 
 export type SearchSettings = z.infer<typeof SearchSettingsSchema>;
@@ -35,6 +37,8 @@ export async function getSearchSettings(): Promise<SearchSettings & { sourcesEna
     keywords: config?.keywords.length ? config.keywords : (stored?.profile.targetTitles ?? []),
     locations: config?.locations.length ? config.locations : (stored?.profile.preferences.locations ?? []),
     sourcesEnabled: config?.sourcesEnabled ?? [],
+    minScore: config?.minScore ?? 70,
+    scoreDailyCap: config?.scoreDailyCap ?? 50,
   };
 }
 
@@ -43,8 +47,10 @@ export async function saveSearchSettings(settings: SearchSettings): Promise<void
     const existing = await tx.searchConfig.findFirst({ orderBy: { updatedAt: "desc" }, select: { id: true } });
     if (existing) await tx.searchConfig.update({ where: { id: existing.id }, data: settings });
     else await tx.searchConfig.create({ data: { ...settings, sourcesEnabled: [] } });
+    // Free to redo, and a job ruled out for its location may now be wanted.
+    await tx.matchScore.deleteMany({ where: { modelVersion: "rules" } });
     await tx.auditLog.create({
-      data: { action: "search.saved", payload: { keywords: settings.keywords.length, locations: settings.locations.length } },
+      data: { action: "search.saved", payload: { keywords: settings.keywords.length, locations: settings.locations.length, minScore: settings.minScore, scoreDailyCap: settings.scoreDailyCap } },
     });
   });
 }

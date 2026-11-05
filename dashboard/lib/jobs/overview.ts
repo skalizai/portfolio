@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
+import { getSearchSettings } from "@/lib/search/settings";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MAX_JOBS = 200;
+const MAX_JOBS = 300;
+const RESPONDED = ["INTERVIEW", "OFFER", "REJECTED"];
 
 /** Everything the Matches page shows. Applications that are only drafted don't count as applied. */
 export async function getJobsOverview(now = new Date()) {
-  const [jobs, totalJobs, newJobs, applicationsThisWeek, lastRun] = await Promise.all([
+  const [jobs, settings, submitted, lastRun] = await Promise.all([
     db().job.findMany({
       where: { state: { not: "DISMISSED" } },
       orderBy: [{ postedAt: { sort: "desc", nulls: "last" } }, { fetchedAt: "desc" }],
@@ -21,16 +23,40 @@ export async function getJobsOverview(now = new Date()) {
         applyChannel: true,
         publisher: true,
         postedAt: true,
+        scores: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { score: true, verdict: true, matchedSkills: true, missingSkills: true, redFlags: true, reasoning: true, createdAt: true },
+        },
       },
     }),
-    db().job.count({ where: { state: { not: "DISMISSED" } } }),
-    db().job.count({ where: { state: { not: "DISMISSED" }, fetchedAt: { gte: new Date(now.getTime() - DAY_MS) } } }),
-    db().application.count({ where: { submittedAt: { gte: new Date(now.getTime() - 7 * DAY_MS) } } }),
+    getSearchSettings(),
+    db().application.findMany({ where: { submittedAt: { not: null } }, select: { status: true, submittedAt: true } }),
     db().auditLog.findFirst({ where: { action: "jobs.fetch" }, orderBy: { at: "desc" }, select: { at: true } }),
   ]);
 
-  return { jobs, totalJobs, newJobs, applicationsThisWeek, lastSearchAt: lastRun?.at ?? null };
+  const rows = jobs.map(({ scores, ...job }) => ({ ...job, match: scores[0] ?? null }));
+  const matches = rows
+    .filter((job) => job.match && job.match.score >= settings.minScore)
+    .sort((a, b) => b.match!.score - a.match!.score);
+  const below = rows.filter((job) => job.match && job.match.score < settings.minScore).sort((a, b) => b.match!.score - a.match!.score);
+  const waiting = rows.filter((job) => !job.match);
+
+  const dayAgo = now.getTime() - DAY_MS;
+  const weekAgo = now.getTime() - 7 * DAY_MS;
+
+  return {
+    matches,
+    below,
+    waiting,
+    minScore: settings.minScore,
+    newMatches: matches.filter((job) => job.match!.createdAt.getTime() >= dayAgo).length,
+    averageScore: matches.length ? Math.round(matches.reduce((sum, job) => sum + job.match!.score, 0) / matches.length) : null,
+    applicationsThisWeek: submitted.filter((a) => a.submittedAt!.getTime() >= weekAgo).length,
+    responseRate: submitted.length ? Math.round((100 * submitted.filter((a) => RESPONDED.includes(a.status)).length) / submitted.length) : null,
+    lastSearchAt: lastRun?.at ?? null,
+  };
 }
 
 export type JobsOverview = Awaited<ReturnType<typeof getJobsOverview>>;
-export type JobRow = JobsOverview["jobs"][number];
+export type JobRow = JobsOverview["matches"][number];

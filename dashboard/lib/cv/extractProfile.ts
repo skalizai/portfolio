@@ -1,9 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { fallbackParams, llmModel } from "@/lib/llm";
 import { ProfileSchema, type Profile } from "@/lib/profile/schema";
-
-const FALLBACK_MODELS = new Set(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
 
 /** Only what a CV can state. Target titles and preferences stay as you set them. */
 const CvFactsSchema = z.object({
@@ -46,18 +45,14 @@ export type ExtractionCall = (system: string, user: string) => Promise<Extractio
 
 const callClaude: ExtractionCall = async (system, user) => {
   const client = new Anthropic({ timeout: 110_000 });
-  const model = process.env.LLM_MODEL || "claude-sonnet-5-5";
-  // Falls back to another model if a safety check wrongly declines the request.
-  const fallback = FALLBACK_MODELS.has(model)
-    ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
-    : {};
+  const model = llmModel();
   return client.beta.messages.parse({
     model,
     max_tokens: 16000,
     system,
     messages: [{ role: "user", content: user }],
     output_config: { format: betaZodOutputFormat(CvFactsSchema) },
-    ...fallback,
+    ...fallbackParams(model),
   });
 };
 
