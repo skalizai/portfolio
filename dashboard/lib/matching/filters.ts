@@ -20,8 +20,9 @@ const MARKETS = [
   ["oman", "muscat"],
   ["bahrain", "manama"],
   ["kuwait"],
-  ["australia", "sydney", "melbourne", "brisbane", "perth", "adelaide", "canberra"],
-  ["new zealand", "auckland", "wellington", "christchurch"],
+  // States as well as cities, because listings often give only a suburb, like "Beenleigh QLD 4207".
+  ["australia", "sydney", "melbourne", "brisbane", "perth", "adelaide", "canberra", "nsw", "new south wales", "vic", "victoria", "qld", "queensland", "wa", "tas", "tasmania", "act", "australian capital territory"],
+  ["new zealand", "auckland", "wellington", "christchurch", "hamilton", "tauranga", "dunedin", "canterbury", "waikato", "otago"],
 ];
 
 const BELOW_SENIOR = /\b(junior|jr|intern|internship|trainee|graduate|entry[- ]level|mid[- ]level|associate(?! (director|partner|principal|vice)))\b/i;

@@ -89,6 +89,13 @@ describe("hardFilter", () => {
       expect(check("Auckland", description)).toBeNull();
     });
 
+    it("recognises suburbs by their state or region", () => {
+      for (const location of ["Beenleigh QLD 4207", "Macquarie Park NSW", "Greater Hamilton Area", "Perth WA 6000"]) {
+        expect(check(location, "We offer: * Visa sponsorship")).toBeNull();
+      }
+      expect(check("Beenleigh QLD 4207", "Lead our SAP team.")?.reason).toContain("Australia");
+    });
+
     it("doesn't apply elsewhere", () => {
       expect(check("Dubai", "Lead our SAP team.")).toBeNull();
     });
