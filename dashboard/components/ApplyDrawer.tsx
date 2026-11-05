@@ -180,6 +180,11 @@ export function ApplyDrawer({
     window.location.assign(`/api/applications/${applicationId}/cv`);
   }
 
+  async function downloadLetter() {
+    if (!(await save())) return;
+    window.location.assign(`/api/applications/${applicationId}/letter`);
+  }
+
   async function markApplied() {
     if (!(await save())) return;
     setBusy(true);
@@ -307,13 +312,18 @@ export function ApplyDrawer({
             {application.channel === "LINKEDIN_EASY_APPLY" && (
               <p className="mt-1 text-dim">Open the job on LinkedIn, copy what you need from here and submit it yourself. This dashboard never acts on LinkedIn for you.</p>
             )}
-            {application.channel === "EMAIL" && application.job.applyEmail && (
-              <p className="mt-1 break-words text-dim">
-                Applications for this job go to {application.job.applyEmail}.
-                {!application.emailReady && " Sending from here isn't set up yet, so email it yourself for now."}
-              </p>
+            {application.job.applyEmail ? (
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                <p className="min-w-0 break-words">
+                  <span className="text-dim">Email to apply: </span>
+                  <strong>{application.job.applyEmail}</strong>
+                </p>
+                <CopyButton label="Email address" text={application.job.applyEmail} onCopied={setMessage} />
+              </div>
+            ) : (
+              <p className="mt-1 text-dim">No email to apply to in this listing. Use the application page below.</p>
             )}
-            {application.channel === "EMAIL" && application.applyEmailContext && (
+            {application.applyEmailContext && (
               <p className="mt-1 break-words">
                 <span className="text-dim">The listing says: </span>&ldquo;{application.applyEmailContext}&rdquo;
               </p>
@@ -357,6 +367,9 @@ export function ApplyDrawer({
                 </Button>
               )}
               <CopyButton label="Cover letter" text={letter} onCopied={setMessage} />
+              <Button type="button" variant="ghost" size="sm" className={OUTLINE} disabled={busy || !letter.trim()} onClick={downloadLetter}>
+                Download cover letter as PDF
+              </Button>
               {cv && (
                 <Button type="button" variant="ghost" size="sm" className={OUTLINE} disabled={busy} onClick={downloadCv}>
                   Download CV as PDF

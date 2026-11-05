@@ -48,6 +48,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Dubai" });
+
+/** The cover letter as a one-page document to attach to your email. */
+export function renderLetterPdf(letter: string, cv: Pick<TailoredCv, "name" | "contact">, date: Date): Promise<Buffer> {
+  const paragraphs = letter.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  return renderToBuffer(
+    <Document title={`Cover Letter - ${printable(cv.name)}`} author={printable(cv.name)}>
+      <Page size="A4" style={{ ...styles.page, fontSize: 11, padding: 50 }}>
+        <Text style={styles.name}>{printable(cv.name)}</Text>
+        <Text style={styles.contact}>{cv.contact.map(printable).join("  |  ")}</Text>
+        <Text style={{ marginTop: 24, marginBottom: 14 }}>{dateFormat.format(date)}</Text>
+        {paragraphs.map((paragraph, index) => (
+          <Text key={index} style={{ marginBottom: 10 }}>
+            {printable(paragraph)}
+          </Text>
+        ))}
+      </Page>
+    </Document>,
+  );
+}
+
 export function renderCvPdf(cv: TailoredCv): Promise<Buffer> {
   return renderToBuffer(
     <Document title={`CV - ${printable(cv.name)}`} author={printable(cv.name)}>

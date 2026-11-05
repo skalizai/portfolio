@@ -70,8 +70,15 @@ function statusLabel(job: JobRow): string | null {
   return job.state === "SAVED" ? "Saved for later" : null;
 }
 
+/** Opens your email program with the address and subject filled in. You attach the files and send. */
+export function mailtoLink(email: string, jobTitle: string, applicantName: string): string {
+  const subject = applicantName ? `Application — ${jobTitle} — ${applicantName}` : `Application — ${jobTitle}`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+}
+
 function JobCard({
   job,
+  applicantName,
   selected,
   busy,
   onToggle,
@@ -80,6 +87,7 @@ function JobCard({
   onState,
 }: {
   job: JobRow;
+  applicantName: string;
   selected: boolean;
   busy: boolean;
   onToggle: () => void;
@@ -130,6 +138,24 @@ function JobCard({
         )}
       </div>
 
+      <div className="mt-3 border-t border-line pt-3 text-sm">
+        {job.applyEmail ? (
+          <>
+            <p className="break-words">
+              <span className="text-dim">Email to apply: </span>
+              <a className="font-semibold underline" href={mailtoLink(job.applyEmail, job.title, applicantName)}>
+                {job.applyEmail}
+              </a>
+            </p>
+            {job.applyEmailContext && (
+              <p className="mt-1 break-words text-dim">The listing says: &ldquo;{job.applyEmailContext}&rdquo;</p>
+            )}
+          </>
+        ) : (
+          <p className="text-dim">No email to apply to in this listing. Apply through Open listing.</p>
+        )}
+      </div>
+
       {match && (
         <div className="mt-3 space-y-2 border-t border-line pt-3 text-sm">
           <p className="break-words">{match.reasoning}</p>
@@ -157,7 +183,21 @@ function JobCard({
           </Button>
         ) : (
           <Button type="button" size="sm" disabled={busy} onClick={onPrepare}>
-            Prepare draft <span className="sr-only">for {job.title} at {job.company}</span>
+            Prepare cover letter <span className="sr-only">for {job.title} at {job.company}</span>
+          </Button>
+        )}
+        {application?.hasLetter && (
+          <Button asChild variant="ghost" size="sm" className={OUTLINE}>
+            <a href={`/api/applications/${application.id}/letter`}>
+              Download cover letter <span className="sr-only">for {job.title} at {job.company}</span>
+            </a>
+          </Button>
+        )}
+        {application && (
+          <Button asChild variant="ghost" size="sm" className={OUTLINE}>
+            <a href={`/api/applications/${application.id}/cv`}>
+              Download CV <span className="sr-only">for {job.title} at {job.company}</span>
+            </a>
           </Button>
         )}
         <Button asChild variant="ghost" size="sm" className={OUTLINE}>
@@ -186,6 +226,7 @@ export function JobsBoard({
   below,
   waiting,
   minScore,
+  applicantName,
   emailReady,
   screening,
 }: {
@@ -194,6 +235,7 @@ export function JobsBoard({
   below: JobRow[];
   waiting: JobRow[];
   minScore: number;
+  applicantName: string;
   emailReady: boolean;
   screening: ScreeningAnswers;
 }) {
@@ -325,6 +367,7 @@ export function JobsBoard({
         <JobCard
           key={job.id}
           job={job}
+          applicantName={applicantName}
           busy={preparing}
           selected={selected.has(job.id)}
           onToggle={() =>
@@ -398,7 +441,7 @@ export function JobsBoard({
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button type="button" disabled={!selected.size || preparing} onClick={() => prepare([...selected])}>
-          Prepare drafts for selected ({selected.size})
+          Prepare cover letters for selected ({selected.size})
         </Button>
         {emailReady && approvable.length > 0 && (
           <Button type="button" onClick={() => approveDialog.current?.showModal()}>

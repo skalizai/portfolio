@@ -58,6 +58,7 @@ export async function getJobsOverview(now = new Date()) {
           id: application.id,
           submitted: application.submittedAt !== null,
           sendAt: application.sendAt,
+          hasLetter: Boolean(application.coverLetter?.trim()),
           // Whether Approve all may include this: an email job with a finished draft and nothing to check.
           approvable: job.applyChannel === "EMAIL" && Boolean(job.applyEmail && application.coverLetter?.trim()) && !application.submittedAt && !application.sendAt && !application.draftWarnings.length,
         }
@@ -80,6 +81,7 @@ export async function getJobsOverview(now = new Date()) {
     below: others.filter((job) => job.match!.score < settings.minScore).sort(byScore),
     waiting: rows.filter((job) => !job.match),
     minScore: settings.minScore,
+    applicantName: stored?.profile.name ?? "",
     emailReady: isEmailConfigured(),
     newMatches: matches.filter((job) => job.match!.createdAt.getTime() >= dayAgo).length,
     averageScore: matches.length ? Math.round(matches.reduce((sum, job) => sum + job.match!.score, 0) / matches.length) : null,

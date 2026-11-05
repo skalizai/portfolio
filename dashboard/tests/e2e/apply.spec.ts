@@ -103,6 +103,41 @@ test.describe.serial("drafts", () => {
     expect((await pdf.body()).subarray(0, 4).toString()).toBe("%PDF");
   });
 
+  test("each job shows its own email, score and downloadable cover letter", async ({ page, context }) => {
+    await addScoredJob("card-1", "SAP Card Email", "EMAIL", true);
+    await addScoredJob("card-2", "SAP Card None", "COMPANY_SITE", false);
+    await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@card.example.com', description = 'Email your resume to hr@card.example.com today.' WHERE id = 'card-1'`));
+
+    await page.goto("/");
+    const withEmail = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "SAP Card Email" }) });
+    const email = withEmail.getByRole("link", { name: "hr@card.example.com" });
+    await expect(email).toHaveAttribute("href", /^mailto:hr@card\.example\.com\?subject=Application/);
+    await expect(email).toHaveAttribute("href", /SAP%20Card%20Email/);
+    await expect(withEmail.getByText("Email your resume to hr@card.example.com today.")).toBeVisible();
+    await expect(withEmail.getByText("99", { exact: true })).toBeVisible();
+
+    const none = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "SAP Card None" }) });
+    await expect(none.getByText("No email to apply to in this listing")).toBeVisible();
+    await expect(none.getByRole("link", { name: /Download cover letter/ })).toBeHidden();
+
+    await expect(withEmail.getByRole("link", { name: /Download CV/ })).toHaveAttribute("href", "/api/applications/app-card-1/cv");
+    await expect(withEmail.getByRole("link", { name: /Download cover letter/ })).toHaveAttribute("href", "/api/applications/app-card-1/letter");
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    const letter = await context.request.get("/api/applications/app-card-1/letter");
+    expect(letter.status()).toBe(200);
+    expect(letter.headers()["content-type"]).toBe("application/pdf");
+    expect(letter.headers()["content-disposition"]).toContain("Cover Letter - Test Person - Drafting Co.pdf");
+    expect((await letter.body()).subarray(0, 4).toString()).toBe("%PDF");
+  });
+
+  test("a cover letter needs a session and an actual letter", async ({ playwright, baseURL, context }) => {
+    const anonymous = await playwright.request.newContext({ baseURL });
+    expect((await anonymous.get("/api/applications/app-card-1/letter")).status()).toBe(401);
+    await anonymous.dispose();
+    expect((await context.request.get("/api/applications/nope/letter")).status()).toBe(404);
+  });
+
   test("marking as applied records it once and locks the draft", async ({ page, context }) => {
     await addScoredJob("draft-2", "SAP Applied Lead", "COMPANY_SITE", true);
 
@@ -147,10 +182,10 @@ test.describe.serial("drafts", () => {
       await route.fulfill({ json: { results: [{ jobId, status: "created", applicationId }] } });
     });
 
-    await expect(page.getByRole("button", { name: "Prepare drafts for selected (0)" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Prepare cover letters for selected (0)" })).toBeDisabled();
     await page.getByRole("checkbox", { name: "Select SAP Pick One at Drafting Co" }).check();
     await page.getByRole("checkbox", { name: "Select SAP Pick Two at Drafting Co" }).check();
-    await page.getByRole("button", { name: "Prepare drafts for selected (2)" }).click();
+    await page.getByRole("button", { name: "Prepare cover letters for selected (2)" }).click();
 
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByText(/Draft \d of 2/)).toBeVisible();
@@ -163,7 +198,7 @@ test.describe.serial("drafts", () => {
 
   test("without an API key, preparing a draft explains what's missing and creates nothing", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: /Prepare draft for SAP Pick One/ }).click();
+    await page.getByRole("button", { name: /Prepare cover letter for SAP Pick One/ }).click();
     await expect(page.getByRole("main").getByRole("status").first()).toContainText("ANTHROPIC_API_KEY");
     await expect(page.getByRole("dialog")).toBeHidden();
   });
