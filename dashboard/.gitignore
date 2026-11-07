@@ -21,3 +21,4 @@ data/*
 
 .vercel
 .env*
+!.env.example
