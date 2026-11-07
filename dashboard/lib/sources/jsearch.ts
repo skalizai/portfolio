@@ -4,7 +4,7 @@ import type { FetchContext, FetchResult, JobSource, NormalisedJob } from "@/lib/
 
 const HOST = "jsearch.p.rapidapi.com";
 const DEFAULT_MONTHLY_LIMIT = 200;
-// One run a day, so this is close to a 30th of the monthly allowance.
+// Used when JSEARCH_MAX_REQUESTS_PER_RUN is unset. The daily share caps it anyway.
 const DEFAULT_REQUESTS_PER_RUN = 7;
 // Leaves time for the last request to finish before the route's 120 second limit.
 const STOP_STARTING_AFTER_MS = 80_000;
