@@ -1,11 +1,12 @@
 import { Document, Font, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { TailoredCv } from "@/lib/apply/cvSchema";
+import { printable } from "@/lib/apply/printable";
 
 // Automatic hyphenation mangles technical terms, such as turning OData into "ODa-ta".
 Font.registerHyphenationCallback((word) => [word]);
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, lineHeight: 1.4, color: "#14141f" },
+  page: { padding: 36, fontFamily: "Helvetica", fontSize: 10, lineHeight: 1.35, color: "#14141f" },
   name: { fontFamily: "Helvetica-Bold", fontSize: 18, lineHeight: 1.2 },
   headline: { fontSize: 12, marginTop: 6 },
   contact: { fontSize: 9, marginTop: 4, color: "#55586a" },
@@ -17,18 +18,11 @@ const styles = StyleSheet.create({
   text: { flex: 1 },
 });
 
-/** The built-in PDF fonts only cover Western European characters, so others are simplified. */
-const printable = (text: string) =>
-  text
-    .replace(/[▸►▪●◦·]/g, "")
-    .replace(/[^\u0009\u000a\u000d -~ -ÿ–—‘’“”•€]/g, "")
-    .trim();
-
 function Bullets({ items }: { items: string[] }) {
   return (
     <>
       {items.map((item, index) => (
-        <View key={index} style={styles.bullet}>
+        <View key={index} style={styles.bullet} wrap={false}>
           <Text style={styles.dot}>•</Text>
           <Text style={styles.text}>{printable(item)}</Text>
         </View>
@@ -91,10 +85,11 @@ export function renderCvPdf(cv: TailoredCv): Promise<Buffer> {
           <Section title="Professional Experience">
             {cv.experience.map((role, index) => (
               <View key={index}>
-                <Text style={styles.roleTitle} minPresenceAhead={30}>
-                  {printable(role.role)}
-                </Text>
-                <Text style={styles.roleMeta}>{[role.company, role.location, role.dates].map(printable).filter(Boolean).join("  |  ")}</Text>
+                {/* The title and company stay together, with the first bullet under them. */}
+                <View wrap={false} minPresenceAhead={40}>
+                  <Text style={styles.roleTitle}>{printable(role.role)}</Text>
+                  <Text style={styles.roleMeta}>{[role.company, role.location, role.dates].map(printable).filter(Boolean).join("  |  ")}</Text>
+                </View>
                 <Bullets items={role.bullets} />
               </View>
             ))}

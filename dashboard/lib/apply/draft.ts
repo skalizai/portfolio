@@ -72,6 +72,12 @@ export function reorder<T>(items: T[], order: number[]): T[] {
   return [...chosen, ...missed].map((index) => items[index]!);
 }
 
+/** A role's "Industry: ... | Project: ..." line introduces it, so it stays at the top whatever the order. */
+export function keepIndustryFirst(bullets: string[]): string[] {
+  const isIndustry = (bullet: string) => /^industrys*:/i.test(bullet.trim());
+  return [...bullets.filter(isIndustry), ...bullets.filter((bullet) => !isIndustry(bullet))];
+}
+
 /** Builds the CV from the candidate's own content. Claude's only input to the body is the order. */
 export function buildTailoredCv(cv: StructuredCv, draft: Pick<DraftOutput, "headline" | "summary" | "competencyOrder" | "bulletOrders">, profile: Profile): TailoredCv {
   return {
@@ -83,7 +89,7 @@ export function buildTailoredCv(cv: StructuredCv, draft: Pick<DraftOutput, "head
     competencies: reorder(cv.competencies, draft.competencyOrder),
     experience: cv.experience.map((role, index) => ({
       ...role,
-      bullets: reorder(role.bullets, draft.bulletOrders.find((entry) => entry.role === index)?.order ?? []),
+      bullets: keepIndustryFirst(reorder(role.bullets, draft.bulletOrders.find((entry) => entry.role === index)?.order ?? [])),
     })),
   };
 }

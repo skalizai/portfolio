@@ -4,7 +4,8 @@ import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { findUnsupportedClaims, wordCount } from "@/lib/apply/claims";
 import type { StructuredCv } from "@/lib/apply/cvSchema";
-import { buildTailoredCv, draftApplication, reorder, type DraftCall, type DraftOutput } from "@/lib/apply/draft";
+import { printable } from "@/lib/apply/printable";
+import { buildTailoredCv, draftApplication, keepIndustryFirst, reorder, type DraftCall, type DraftOutput } from "@/lib/apply/draft";
 import { EMPTY_PROFILE, type Profile } from "@/lib/profile/schema";
 import { FIXTURE_JOBS } from "../fixtures/jobs";
 
@@ -85,7 +86,32 @@ describe("reorder", () => {
   });
 });
 
+describe("printable", () => {
+  it("spells out arrows, which the PDF font can't draw", () => {
+    expect(printable("all EBOSS → EWM flows")).toBe("all EBOSS to EWM flows");
+    expect(printable("SAP ↔ EBOSS")).toBe("SAP and EBOSS");
+  });
+
+  it("keeps Western European text and drops what can't be printed", () => {
+    expect(printable("Müller’s — café 100%")).toBe("Müller’s — café 100%");
+    expect(printable("📍 Dubai ▸")).toBe("Dubai");
+  });
+});
+
+describe("keepIndustryFirst", () => {
+  it("moves the Industry line to the top and keeps the rest in order", () => {
+    expect(keepIndustryFirst(["Did B", "Industry: Oil | Project: X", "Did A"])).toEqual(["Industry: Oil | Project: X", "Did B", "Did A"]);
+    expect(keepIndustryFirst(["Did B", "Mentioned Industry: Oil"])).toEqual(["Did B", "Mentioned Industry: Oil"]);
+  });
+});
+
 describe("buildTailoredCv", () => {
+  it("keeps the Industry line first even when Claude moves it", () => {
+    const withIndustry = { ...CV, experience: [{ ...CV.experience[0]!, bullets: ["Industry: Oil", "Did A", "Did B"] }] };
+    const cv = buildTailoredCv(withIndustry, { ...DRAFT, bulletOrders: [{ role: 0, order: [2, 1, 0] }] }, PROFILE);
+    expect(cv.experience[0]!.bullets).toEqual(["Industry: Oil", "Did B", "Did A"]);
+  });
+
   it("can only reorder the CV's content, whatever Claude returns", () => {
     const cv = buildTailoredCv(CV, { ...DRAFT, competencyOrder: [99, 2], bulletOrders: [{ role: 7, order: [0] }, { role: 0, order: [1] }] }, PROFILE);
 

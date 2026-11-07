@@ -126,14 +126,16 @@ describe("scoreNewJobs", () => {
     await saveSearchSettings({ keywords: ["SAP"], locations: ["Dubai"], minScore: 70, scoreDailyCap: 2, draftDailyCap: 5, dailyApplyCap: 15 });
     await addJobs([STRONG, STRONG, STRONG]);
 
-    const first = await scoreNewJobs({ now: NOW, call });
+    // The database stamps scores with the real date, so this has to count from the real clock.
+    const today = new Date();
+    const first = await scoreNewJobs({ now: today, call });
     expect(call).toHaveBeenCalledTimes(2);
     expect(first).toMatchObject({ scored: 2, remaining: 1, capReached: true, more: false });
 
-    await scoreNewJobs({ now: NOW, call });
+    await scoreNewJobs({ now: today, call });
     expect(call).toHaveBeenCalledTimes(2);
 
-    await scoreNewJobs({ now: new Date(NOW.getTime() + 24 * 60 * 60 * 1000), call });
+    await scoreNewJobs({ now: new Date(today.getTime() + 24 * 60 * 60 * 1000), call });
     expect(call).toHaveBeenCalledTimes(3);
   });
 
