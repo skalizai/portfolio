@@ -13,8 +13,6 @@ type Application = {
   tailoredCv: TailoredCv | null;
   draftWarnings: string[];
   submittedAt: string | null;
-  sendAt: string | null;
-  emailReady: boolean;
   applyEmailContext: string | null;
   job: { title: string; company: string; url: string; applyUrl: string | null; applyEmail: string | null };
 };
@@ -69,8 +67,6 @@ export function ApplyDrawer({
   const [cv, setCv] = useState<TailoredCv | null>(null);
   const [message, setMessage] = useState("Loading the draft…");
   const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
     const element = dialog.current;
@@ -95,66 +91,7 @@ export function ApplyDrawer({
   }, [applicationId]);
 
   const submitted = Boolean(application?.submittedAt);
-  const queued = Boolean(application?.sendAt);
-  const locked = submitted || queued;
-  const sendAt = application?.sendAt;
-
-  // Counts down the undo window, then asks for the email to go.
-  useEffect(() => {
-    if (!sendAt) {
-      setSecondsLeft(null);
-      return;
-    }
-    const target = new Date(sendAt).getTime();
-    let finished = false;
-    const tick = async () => {
-      const left = Math.ceil((target - Date.now()) / 1000);
-      setSecondsLeft(Math.max(0, left));
-      if (left > 0 || finished) return;
-      finished = true;
-      await fetch("/api/applications/process", { method: "POST" }).catch(() => null);
-      const response = await fetch(`/api/applications/${applicationId}`).catch(() => null);
-      if (!response?.ok) return;
-      const data: Application = await response.json();
-      setApplication(data);
-      setMessage(data.submittedAt ? "Application sent." : data.sendAt ? "Sending shortly." : "The email couldn't be sent, so nothing went out.");
-    };
-    void tick();
-    const timer = setInterval(() => void tick(), 1000);
-    return () => clearInterval(timer);
-  }, [sendAt, applicationId]);
-
-  async function send() {
-    if (!(await save())) return;
-    setBusy(true);
-    setConfirming(false);
-    const response = await fetch(`/api/applications/${applicationId}/send`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ confirm: true }),
-    }).catch(() => null);
-    setBusy(false);
-    const body = await response?.json().catch(() => null);
-    if (response?.ok) {
-      setApplication((a) => (a ? { ...a, status: "READY", sendAt: body.sendAt } : a));
-      setMessage("Waiting to send. You can still cancel.");
-      return;
-    }
-    setMessage(body?.error ?? "Couldn't queue this email. Please try again.");
-  }
-
-  async function cancel() {
-    setBusy(true);
-    const response = await fetch(`/api/applications/${applicationId}/cancel`, { method: "POST" }).catch(() => null);
-    setBusy(false);
-    if (response?.ok) {
-      setApplication((a) => (a ? { ...a, status: "DRAFT", sendAt: null } : a));
-      setMessage("Cancelled. Nothing was sent.");
-      return;
-    }
-    const body = await response?.json().catch(() => null);
-    setMessage(body?.error ?? "Couldn't cancel. It may already have been sent.");
-  }
+  const locked = submitted;
 
   async function save(): Promise<boolean> {
     if (locked) return true;
@@ -327,36 +264,6 @@ export function ApplyDrawer({
               <p className="mt-1 break-words">
                 <span className="text-dim">The listing says: </span>&ldquo;{application.applyEmailContext}&rdquo;
               </p>
-            )}
-            {application.channel === "EMAIL" && application.job.applyEmail && application.emailReady && !submitted && (
-              <div className="mt-3 rounded-md border border-line-strong p-3">
-                {queued ? (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p>{secondsLeft ? `Sending in ${secondsLeft} seconds.` : "Sending now."}</p>
-                    <Button type="button" variant="ghost" size="sm" className={OUTLINE} disabled={busy} onClick={cancel}>
-                      Cancel sending
-                    </Button>
-                  </div>
-                ) : confirming ? (
-                  <div>
-                    <p className="break-words">
-                      This emails your cover letter and tailored CV to {application.job.applyEmail}, as they appear above. You&apos;ll have 60 seconds to cancel.
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button type="button" size="sm" disabled={busy} onClick={send}>
-                        Yes, send it
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" className={OUTLINE} onClick={() => setConfirming(false)}>
-                        Not yet
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button type="button" size="sm" disabled={busy || !letter.trim()} onClick={() => setConfirming(true)}>
-                    Send application by email
-                  </Button>
-                )}
-              </div>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {applyLink && (

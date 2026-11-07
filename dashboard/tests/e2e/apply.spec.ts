@@ -203,80 +203,27 @@ test.describe.serial("drafts", () => {
     await expect(page.getByRole("dialog")).toBeHidden();
   });
 
-  test("sending needs a session and a confirmation, and the scheduler can't do either", async ({ playwright, baseURL, context }) => {
-    await addScoredJob("mail-0", "SAP Mail Guard", "EMAIL", true);
-    await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@guard.example.com' WHERE id = 'mail-0'`));
-
-    const anonymous = await playwright.request.newContext({ baseURL });
-    const headers = { authorization: `Bearer ${TEST_CRON_SECRET}` };
-    const data = { confirm: true };
-    expect((await anonymous.post("/api/applications/app-mail-0/send", { data })).status()).toBe(401);
-    expect((await anonymous.post("/api/applications/app-mail-0/send", { data, headers })).status()).toBe(401);
-    expect((await anonymous.post("/api/applications/approve-all", { data: { confirm: true, ids: ["app-mail-0"] }, headers })).status()).toBe(401);
-    expect((await anonymous.post("/api/applications/app-mail-0/cancel", { headers })).status()).toBe(401);
-    expect((await anonymous.post("/api/applications/process", { headers })).status()).toBe(200);
-    await anonymous.dispose();
-
-    expect((await context.request.post("/api/applications/app-mail-0/send", { data: {} })).status()).toBe(400);
-    expect((await context.request.post("/api/applications/app-mail-0/send", { data: { confirm: "yes" } })).status()).toBe(400);
-    const untouched = await context.request.get("/api/applications/app-mail-0");
-    expect(await untouched.json()).toMatchObject({ status: "DRAFT", sendAt: null });
-  });
-
-  test("an email draft asks first, waits, locks and can be cancelled", async ({ page, context }) => {
+  test("the dashboard never sends an application, even with email set up", async ({ page, playwright, baseURL, context }) => {
+    // The test server has Yahoo settings, so this checks they only ever feed the daily email.
     await addScoredJob("mail-1", "SAP Mail Lead", "EMAIL", true);
     await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@mail.example.com', description = 'Email your CV to hr@mail.example.com' WHERE id = 'mail-1'`));
 
     await page.goto("/");
+    await expect(page.getByRole("button", { name: /Approve all/ })).toBeHidden();
     await page.getByRole("button", { name: /Review draft for SAP Mail Lead/ }).click();
     const drawer = page.getByRole("dialog");
-    await drawer.getByRole("button", { name: "Send application by email" }).click();
-    await expect(drawer.getByText(/This emails your cover letter and tailored CV to hr@mail.example.com/)).toBeVisible();
-    await expect(drawer.getByText("Email your CV to hr@mail.example.com")).toBeVisible();
-    expect(await (await context.request.get("/api/applications/app-mail-1")).json()).toMatchObject({ sendAt: null });
+    await expect(drawer.getByText("hr@mail.example.com", { exact: true })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Download cover letter as PDF" })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: /Send/ })).toHaveCount(0);
 
-    await drawer.getByRole("button", { name: "Yes, send it" }).click();
-    await expect(drawer.getByText(/Sending in \d+ seconds/)).toBeVisible();
-    await expect(drawer.getByLabel("Cover letter")).not.toBeEditable();
-    expect((await context.request.patch("/api/applications/app-mail-1", { data: { coverLetter: "Changed" } })).status()).toBe(409);
-    expect((await context.request.post("/api/applications/app-mail-1/mark-submitted")).status()).toBe(409);
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-
-    await drawer.getByRole("button", { name: "Cancel sending" }).click();
-    await expect(drawer.getByRole("status")).toHaveText("Cancelled. Nothing was sent.");
-    await expect(drawer.getByLabel("Cover letter")).toBeEditable();
-    expect(await (await context.request.get("/api/applications/app-mail-1")).json()).toMatchObject({ status: "DRAFT", sendAt: null, submittedAt: null });
-  });
-
-  test("Approve all lists who it will email, leaves flagged drafts out and can be cancelled", async ({ page, context }) => {
-    await addScoredJob("mail-2", "SAP Approve One", "EMAIL", true);
-    await addScoredJob("mail-3", "SAP Approve Flagged", "EMAIL", true);
-    await withDb(async (client) => {
-      await client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@approve.example.com' WHERE id IN ('mail-2', 'mail-3')`);
-      await client.query(`UPDATE jobmatch."Application" SET "draftWarnings" = '{}' WHERE id IN ('app-mail-2', 'app-mail-1', 'app-mail-0')`);
-    });
-
-    await page.goto("/");
-    await page.getByRole("button", { name: "Approve all (3)" }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("Send 3 applications?")).toBeVisible();
-    await expect(dialog.getByText("To hr@approve.example.com")).toBeVisible();
-    await expect(dialog.getByText("SAP Approve Flagged")).toBeHidden();
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-
-    await dialog.getByRole("button", { name: "Not yet" }).click();
-    expect(await (await context.request.get("/api/applications/app-mail-2")).json()).toMatchObject({ sendAt: null });
-
-    await page.getByRole("button", { name: "Approve all (3)" }).click();
-    await page.getByRole("button", { name: "Yes, send them" }).click();
-    const waiting = page.getByRole("region", { name: "Waiting to send" });
-    await expect(waiting.getByText("SAP Approve One, Drafting Co")).toBeVisible();
-
-    for (const name of ["app-mail-0", "app-mail-1", "app-mail-2"]) {
-      expect((await context.request.post(`/api/applications/${name}/cancel`)).status()).toBe(200);
+    for (const path of ["/api/applications/app-mail-1/send", "/api/applications/approve-all", "/api/applications/app-mail-1/cancel", "/api/applications/process"]) {
+      // Gone, or caught by the draft route, which has no way to send.
+      expect([404, 405]).toContain((await context.request.post(path, { data: { confirm: true, ids: ["app-mail-1"] } })).status());
     }
-    await page.reload();
-    await expect(page.getByRole("region", { name: "Waiting to send" })).toBeHidden();
+
+    const anonymous = await playwright.request.newContext({ baseURL });
+    expect((await anonymous.post("/api/notify/digest")).status()).toBe(401);
+    await anonymous.dispose();
   });
 
   test("a job can be saved or dismissed", async ({ page }) => {

@@ -20,7 +20,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default async function MatchesPage() {
-  const [{ matches, sponsorshipUnknown, below, waiting, minScore, applicantName, emailReady, newMatches, averageScore, applicationsThisWeek, responseRate, lastSearchAt }, screening] = await Promise.all([
+  const [{ matches, sponsorshipUnknown, below, waiting, minScore, applicantName, newMatches, averageScore, applicationsThisWeek, responseRate, lastSearchAt }, screening] = await Promise.all([
     getJobsOverview(),
     getScreeningAnswers(),
   ]);
@@ -40,7 +40,7 @@ export default async function MatchesPage() {
         <Stat label="Response rate" value={responseRate === null ? "None yet" : `${responseRate}%`} />
       </dl>
 
-      <JobsBoard matches={matches} sponsorshipUnknown={sponsorshipUnknown} below={below} waiting={waiting} minScore={minScore} applicantName={applicantName} emailReady={emailReady} screening={screening} />
+      <JobsBoard matches={matches} sponsorshipUnknown={sponsorshipUnknown} below={below} waiting={waiting} minScore={minScore} applicantName={applicantName} screening={screening} />
     </>
   );
 }

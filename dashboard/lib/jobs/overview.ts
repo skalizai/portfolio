@@ -1,5 +1,4 @@
 import { applyEmailContext } from "@/lib/apply/channelDetect";
-import { isEmailConfigured } from "@/lib/apply/send";
 import { db } from "@/lib/db";
 import { sponsorshipStatus } from "@/lib/matching/filters";
 import { RULES_VERSION } from "@/lib/matching/scoreJobs";
@@ -32,7 +31,7 @@ export async function getJobsOverview(now = new Date()) {
         state: true,
         description: true,
         applyEmail: true,
-        application: { select: { id: true, submittedAt: true, sendAt: true, coverLetter: true, draftWarnings: true } },
+        application: { select: { id: true, submittedAt: true, coverLetter: true } },
         scores: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -57,10 +56,7 @@ export async function getJobsOverview(now = new Date()) {
       ? {
           id: application.id,
           submitted: application.submittedAt !== null,
-          sendAt: application.sendAt,
           hasLetter: Boolean(application.coverLetter?.trim()),
-          // Whether Approve all may include this: an email job with a finished draft and nothing to check.
-          approvable: job.applyChannel === "EMAIL" && Boolean(job.applyEmail && application.coverLetter?.trim()) && !application.submittedAt && !application.sendAt && !application.draftWarnings.length,
         }
       : null,
     sponsorshipUnmentioned: sponsorshipStatus({ title: job.title, location: job.location, description }, preferences) === "unmentioned",
@@ -82,7 +78,6 @@ export async function getJobsOverview(now = new Date()) {
     waiting: rows.filter((job) => !job.match),
     minScore: settings.minScore,
     applicantName: stored?.profile.name ?? "",
-    emailReady: isEmailConfigured(),
     newMatches: matches.filter((job) => job.match!.createdAt.getTime() >= dayAgo).length,
     averageScore: matches.length ? Math.round(matches.reduce((sum, job) => sum + job.match!.score, 0) / matches.length) : null,
     applicationsThisWeek: submitted.filter((a) => a.submittedAt!.getTime() >= weekAgo).length,

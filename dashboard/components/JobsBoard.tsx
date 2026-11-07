@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ApplyDrawer } from "@/components/ApplyDrawer";
 import { JobEmail } from "@/components/JobEmail";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,6 @@ function Chips({ label, items }: { label: string; items: string[] }) {
 
 function statusLabel(job: JobRow): string | null {
   if (job.application?.submitted) return "Applied";
-  if (job.application?.sendAt) return "Waiting to send";
   if (job.application) return "Draft ready";
   return job.state === "SAVED" ? "Saved for later" : null;
 }
@@ -219,7 +218,6 @@ export function JobsBoard({
   waiting,
   minScore,
   applicantName,
-  emailReady,
   screening,
 }: {
   matches: JobRow[];
@@ -228,7 +226,6 @@ export function JobsBoard({
   waiting: JobRow[];
   minScore: number;
   applicantName: string;
-  emailReady: boolean;
   screening: ScreeningAnswers;
 }) {
   const router = useRouter();
@@ -244,39 +241,6 @@ export function JobsBoard({
   const [message, setMessage] = useState("");
 
   const allJobs = [...matches, ...sponsorshipUnknown, ...below, ...waiting];
-  const approvable = matches.filter((job) => job.application?.approvable);
-  const queuedJobs = allJobs.filter((job) => job.application?.sendAt);
-  const approveDialog = useRef<HTMLDialogElement>(null);
-  const hasQueued = queuedJobs.length > 0;
-
-  // While emails are waiting and this page is open, send each one as its undo window ends.
-  useEffect(() => {
-    if (!hasQueued) return;
-    const timer = setInterval(async () => {
-      const response = await fetch("/api/applications/process", { method: "POST" }).catch(() => null);
-      const result = response?.ok ? await response.json() : null;
-      if (result?.sent || result?.failed) router.refresh();
-    }, 15_000);
-    return () => clearInterval(timer);
-  }, [hasQueued, router]);
-
-  async function approveAll() {
-    approveDialog.current?.close();
-    const result = await post<{ queued: unknown[]; skipped: { reason: string }[] }>("/api/applications/approve-all", { confirm: true, ids: approvable.map((job) => job.application!.id) });
-    if (!result) {
-      setMessage("Couldn't queue those emails. Check that email is set up, then try again.");
-      return;
-    }
-    const reasons = [...new Set(result.skipped.map((skip) => skip.reason))].join(" ");
-    setMessage(`${result.queued.length} waiting to send. You can cancel each below. ${reasons}`.trim());
-    router.refresh();
-  }
-
-  async function cancelQueued(job: JobRow) {
-    const done = await post(`/api/applications/${job.application!.id}/cancel`);
-    setMessage(done ? "Cancelled. Nothing was sent." : "Couldn't cancel. It may already have been sent.");
-    router.refresh();
-  }
   const sources = [...new Set(allJobs.map((job) => job.publisher).filter((name): name is string => Boolean(name)))].sort();
   const needle = query.trim().toLowerCase();
 
@@ -436,66 +400,14 @@ export function JobsBoard({
         <Button type="button" disabled={!selected.size || preparing} onClick={() => prepare([...selected])}>
           Prepare cover letters for selected ({selected.size})
         </Button>
-        {emailReady && approvable.length > 0 && (
-          <Button type="button" onClick={() => approveDialog.current?.showModal()}>
-            Approve all ({approvable.length})
-          </Button>
-        )}
         <Button type="button" variant="ghost" className={OUTLINE} onClick={refresh} disabled={refreshing}>
           Refresh now
         </Button>
       </div>
 
-      <dialog ref={approveDialog} aria-labelledby="approve-title" className="m-auto w-full max-w-lg rounded-xl border border-line bg-surface p-4 text-txt backdrop:bg-black/60">
-        <h2 id="approve-title" className="text-lg font-semibold">
-          Send {approvable.length} {approvable.length === 1 ? "application" : "applications"}?
-        </h2>
-        <p className="mt-2 text-sm text-dim">Each cover letter and tailored CV goes by email, as drafted. You&apos;ll have 60 seconds to cancel, and emails to the same company are spaced 2 minutes apart.</p>
-        <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm">
-          {approvable.map((job) => (
-            <li key={job.id} className="break-words">
-              <strong>{job.title}</strong>, {job.company}
-              <br />
-              <span className="text-dim">To {job.applyEmail}</span>
-              {job.applyEmailContext && (
-                <>
-                  <br />
-                  <span className="text-dim">The listing says: &ldquo;{job.applyEmailContext}&rdquo;</span>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button type="button" onClick={approveAll}>
-            Yes, send them
-          </Button>
-          <Button type="button" variant="ghost" className={OUTLINE} onClick={() => approveDialog.current?.close()}>
-            Not yet
-          </Button>
-        </div>
-      </dialog>
       <p role="status" className="mt-2 min-h-5 text-sm">
         {message}
       </p>
-
-      {hasQueued && (
-        <section aria-label="Waiting to send" className="mt-2 rounded-xl border border-line-strong bg-surface p-4">
-          <h2 className="text-lg font-semibold">Waiting to send ({queuedJobs.length})</h2>
-          <ul className="mt-2 space-y-2 text-sm">
-            {queuedJobs.map((job) => (
-              <li key={job.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span className="min-w-0 break-words">
-                  {job.title}, {job.company}
-                </span>
-                <Button type="button" variant="ghost" size="sm" className={OUTLINE} onClick={() => cancelQueued(job)}>
-                  Cancel <span className="sr-only">sending to {job.company}</span>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <h2 className="mt-2 text-lg font-semibold">Your matches</h2>
       {shownMatches.length ? (

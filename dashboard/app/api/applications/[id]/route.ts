@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { applyEmailContext } from "@/lib/apply/channelDetect";
 import { TailoredCvSchema } from "@/lib/apply/cvSchema";
-import { isEmailConfigured } from "@/lib/apply/send";
 import { requireApiSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -29,7 +28,7 @@ function load(id: string) {
 
 /** Adds what the page needs, and leaves out the long description itself. */
 function present({ job: { description, ...job }, ...application }: Row) {
-  return { ...application, job, applyEmailContext: applyEmailContext(description, job.applyEmail), emailReady: isEmailConfigured() };
+  return { ...application, job, applyEmailContext: applyEmailContext(description, job.applyEmail) };
 }
 
 export async function GET(_request: Request, { params }: Context) {

@@ -1,0 +1,8 @@
+# Never upload secrets or personal data. Vercel gets its settings from the project's environment variables.
+.env
+.env.*
+data/
+.next/
+node_modules/
+test-results/
+playwright-report/
