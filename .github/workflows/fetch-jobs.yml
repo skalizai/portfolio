@@ -46,3 +46,8 @@ jobs:
             echo "Drafts $attempt: more=$more"
             [ "$more" = "true" ] || break
           done
+
+          # Emails you the new top matches. It only writes to your own address.
+          curl --fail --silent --show-error --max-time 90 \
+            -X POST "$DASHBOARD_URL/api/notify/digest" \
+            -H "Authorization: Bearer $CRON_SECRET" | jq -c '{status, jobs, more}'

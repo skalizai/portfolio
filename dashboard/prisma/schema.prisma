@@ -95,6 +95,8 @@ model Job {
   dedupeHash     String       @unique
   rawJson        Json?
   state          JobState     @default(ACTIVE)
+  // When this job went out in the daily email, so it's only emailed once.
+  notifiedAt     DateTime?
 
   scores      MatchScore[]
   application Application?

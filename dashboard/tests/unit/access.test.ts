@@ -76,6 +76,7 @@ describe("decideAccess", () => {
     expect(decide("/api/jobs/score", null, bearer)).toBe("allow");
     expect(decide("/api/applications/auto", null, bearer)).toBe("allow");
     expect(decide("/api/applications/process", null, bearer)).toBe("allow");
+    expect(decide("/api/notify/digest", null, bearer)).toBe("allow");
     expect(decide("/api/applications/x", null, bearer)).toBe("unauthorized");
     // The scheduler can send what you've confirmed, but can't confirm anything itself.
     expect(decide("/api/applications/x/send", null, bearer)).toBe("unauthorized");
