@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   try {
     digest = await sendDigest();
   } catch {
-    // SMTP errors can echo account details, so only the outcome is reported.
+    // Email errors can include account details, so only the outcome is reported.
     digest = { status: "failed" };
   }
   return Response.json({ scored: scored.scored, drafts: drafts.created, draftErrors: drafts.errors, digest: digest.status });

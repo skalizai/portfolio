@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   try {
     return Response.json(await sendDigest());
   } catch {
-    // SMTP errors can echo account details, so only a general message is returned.
-    return Response.json({ status: "failed", message: "The email couldn't be sent. Check your Yahoo app password, then try again." }, { status: 502 });
+    // Email errors can include account details, so only a general message is returned.
+    return Response.json({ status: "failed", message: "The email couldn't be sent. Check the Resend API key, then try again." }, { status: 502 });
   }
 }

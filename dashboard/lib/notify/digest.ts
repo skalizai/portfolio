@@ -15,22 +15,25 @@ export type DigestResult =
   | { status: "nothing-new" }
   | { status: "not-configured"; message: string };
 
-/** Your own Yahoo account sends it to you, unless DIGEST_TO names another address. */
+/** Goes to DIGEST_TO, or else to the address you sign in with. */
 export function digestRecipient(): string | null {
-  return process.env.DIGEST_TO?.trim() || process.env.SMTP_USER?.trim() || null;
+  return process.env.DIGEST_TO?.trim() || process.env.AUTH_ALLOWED_EMAIL?.trim() || null;
 }
 
-const deliverBySmtp: DigestDeliver = async ({ to, subject, text }) => {
-  const { default: nodemailer } = await import("nodemailer");
-  const port = Number(process.env.SMTP_PORT) || 465;
-  const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.mail.yahoo.com",
-    port,
-    secure: port === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_APP_PASSWORD },
+/**
+ * Sent through Resend. Without a verified domain of your own, Resend's shared sender address can
+ * only write to the email your Resend account is registered with, which is all this needs.
+ */
+const deliverByResend: DigestDeliver = async ({ to, subject, text }) => {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({ from: process.env.DIGEST_FROM?.trim() || "Job matches <onboarding@resend.dev>", to: [to], subject, text }),
   });
-  const info = await transport.sendMail({ from: { name: "Job matches", address: process.env.SMTP_USER! }, to, subject, text });
-  return { messageId: info.messageId };
+  // The error body is left out, so nothing about the account can end up in a log or response.
+  if (!response.ok) throw new Error(`Resend answered ${response.status}`);
+  const { id } = (await response.json()) as { id: string };
+  return { messageId: id };
 };
 
 export type DigestJob = {
@@ -82,8 +85,8 @@ export function digestText(
  */
 export async function sendDigest(options: { deliver?: DigestDeliver; now?: Date } = {}): Promise<DigestResult> {
   const to = digestRecipient();
-  if (!options.deliver && !(process.env.SMTP_USER && process.env.SMTP_APP_PASSWORD)) {
-    return { status: "not-configured", message: "Set SMTP_USER and SMTP_APP_PASSWORD (a Yahoo app password) to get the daily email." };
+  if (!options.deliver && !process.env.RESEND_API_KEY) {
+    return { status: "not-configured", message: "Set RESEND_API_KEY to get the daily email." };
   }
   if (!to) return { status: "not-configured", message: "There's no address to send the daily email to." };
 
@@ -124,7 +127,7 @@ export async function sendDigest(options: { deliver?: DigestDeliver; now?: Date 
     visaLocations: stored?.profile.preferences.visaSponsorshipLocations ?? [],
   });
 
-  await (options.deliver ?? deliverBySmtp)({ to, subject, text });
+  await (options.deliver ?? deliverByResend)({ to, subject, text });
   await db().job.updateMany({ where: { id: { in: batch.map((job) => job.id) } }, data: { notifiedAt: options.now ?? new Date() } });
   await db().auditLog.create({ data: { action: "digest.sent", payload: { jobs: batch.length, more } } });
   return { status: "sent", jobs: batch.length, more };

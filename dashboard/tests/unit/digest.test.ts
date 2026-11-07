@@ -60,8 +60,8 @@ beforeAll(async () => {
   await server.start();
 
   process.env.DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PORT}/postgres?sslmode=disable`;
-  process.env.SMTP_USER = "me@example.com";
-  delete process.env.SMTP_APP_PASSWORD;
+  process.env.AUTH_ALLOWED_EMAIL = "me@example.com";
+  delete process.env.RESEND_API_KEY;
   delete process.env.DIGEST_TO;
   ({ db } = await import("@/lib/db"));
   digest = await import("@/lib/notify/digest");
@@ -131,7 +131,7 @@ describe("sendDigest", () => {
     expect(await digest.sendDigest({ deliver })).toEqual({ status: "sent", jobs: 2, more: 0 });
   });
 
-  it("says what's missing when Yahoo isn't set up, and sends nothing", async () => {
+  it("says what's missing when Resend isn't set up, and sends nothing", async () => {
     await addJob("a", [{ score: 90 }]);
     expect(await digest.sendDigest()).toMatchObject({ status: "not-configured" });
     expect((await db().job.findUniqueOrThrow({ where: { id: "a" } })).notifiedAt).toBeNull();

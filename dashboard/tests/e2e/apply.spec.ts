@@ -204,7 +204,6 @@ test.describe.serial("drafts", () => {
   });
 
   test("the dashboard never sends an application, even with email set up", async ({ page, playwright, baseURL, context }) => {
-    // The test server has Yahoo settings, so this checks they only ever feed the daily email.
     await addScoredJob("mail-1", "SAP Mail Lead", "EMAIL", true);
     await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@mail.example.com', description = 'Email your CV to hr@mail.example.com' WHERE id = 'mail-1'`));
 
