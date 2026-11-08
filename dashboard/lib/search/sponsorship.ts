@@ -18,6 +18,16 @@ export type SponsorshipRule = z.infer<typeof SponsorshipRuleSchema>;
 /** The phrase to search for and check, with the usual one when none is given. */
 export const termOf = (rule: Pick<SponsorshipRule, "term">) => rule.term.trim() || DEFAULT_SPONSORSHIP_TERM;
 
+/** The alternatives in a phrase, separated by commas or semicolons. Any one of them counts. */
+export const alternativesOf = (rule: Pick<SponsorshipRule, "term">) =>
+  termOf(rule)
+    .split(/[,;]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+/** Only the first alternative goes into the search, because long searches find very little. */
+export const searchPhraseOf = (rule: Pick<SponsorshipRule, "term">) => alternativesOf(rule)[0] ?? DEFAULT_SPONSORSHIP_TERM;
+
 /** Rules saved in Settings, or else the countries listed on the profile before rules existed. */
 export function resolveSponsorshipRules(saved: unknown, profileCountries: string[]): SponsorshipRule[] {
   const parsed = SponsorshipRulesSchema.safeParse(saved);

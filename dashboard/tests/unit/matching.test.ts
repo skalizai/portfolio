@@ -63,7 +63,7 @@ describe("hardFilter", () => {
   describe("per-country sponsorship rules", () => {
     const rules = [
       { country: "Australia", term: "visa sponsorship", onlyIfMentioned: true },
-      { country: "Singapore", term: "Employment Pass", onlyIfMentioned: true },
+      { country: "Singapore", term: "Employment Pass, EP", onlyIfMentioned: true },
       { country: "Malaysia", term: "", onlyIfMentioned: false },
     ];
     const preferences = { ...PROFILE.preferences, sponsorshipRules: rules };
@@ -77,11 +77,24 @@ describe("hardFilter", () => {
     });
 
     it("matches a custom phrase as written, and leaves non-strict countries and others alone", () => {
-      expect(check("Singapore", "Visa support offered.")?.reason).toContain('"Employment Pass"');
+      expect(check("Singapore", "Visa support offered.")?.reason).toContain('"Employment Pass" or "EP"');
       expect(check("Singapore", "We will support your employment pass application.")).toBeNull();
+      expect(check("Singapore", "EP provided for the right candidate.")).toBeNull();
+      // A word that merely contains the letters doesn't count.
+      expect(check("Singapore", "Deep SAP experience needed.")?.reason).toContain("doesn't mention");
       expect(check("Kuala Lumpur, Malaysia", "Lead our SAP team.")).toBeNull();
       expect(sponsorshipStatus({ title: "SAP Lead", location: "Kuala Lumpur", description: "Lead." }, preferences)).toBe("unmentioned");
       expect(check("Dubai", "Lead our SAP team.")).toBeNull();
+    });
+
+    it("accepts any of several alternatives, and an alternative offered outweighs a refusal", () => {
+      const mixed = { ...PROFILE.preferences, sponsorshipRules: [{ country: "Singapore", term: "visa sponsorship, Employment Pass", onlyIfMentioned: true }] };
+      const run = (description: string) => hardFilter({ title: "SAP Lead", location: "Singapore", workMode: null, postedAt: null, description }, mixed, wanted, NOW);
+      expect(run("Visa sponsorship available.")).toBeNull();
+      expect(run("Employment Pass provided.")).toBeNull();
+      expect(run("No visa sponsorship, but we will provide an Employment Pass.")).toBeNull();
+      expect(run("No visa sponsorship.")?.reason).toContain("isn't available");
+      expect(run("Lead our team.")?.reason).toContain('"visa sponsorship" or "Employment Pass"');
     });
 
     it("says which jobs a strict rule hides", () => {

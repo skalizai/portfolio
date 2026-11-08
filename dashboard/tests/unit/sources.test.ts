@@ -379,7 +379,7 @@ describe("morning search pacing", () => {
 
   it("adds each country's own phrase, and knows Malaysia and Singapore", () => {
     const rules = [
-      { country: "Singapore", term: "Employment Pass" },
+      { country: "Singapore", term: "Employment Pass, EP" },
       { country: "Malaysia", term: "" },
     ];
     expect(buildQueries(["SAP Lead"], ["Singapore", "Kuala Lumpur", "Dubai"], rules)).toEqual([

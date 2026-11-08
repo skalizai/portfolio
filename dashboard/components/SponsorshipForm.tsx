@@ -43,8 +43,9 @@ export function SponsorshipForm({ initial }: { initial: SponsorshipRule[] }) {
       <section className="rounded-xl border border-line bg-surface p-4">
         <h2 className="text-lg font-semibold">Countries that need visa sponsorship</h2>
         <p className="mt-1 text-sm text-dim">
-          For each country, the search adds your phrase, such as &ldquo;{DEFAULT_SPONSORSHIP_TERM}&rdquo;. Tick the box to keep only jobs whose listing mentions it, which also saves
-          scoring the others. A phrase about visas or sponsorship matches any mention of either. Any other phrase, such as &ldquo;Employment Pass&rdquo;, has to appear as written.
+          List what a job in each country must offer, separated by commas, such as &ldquo;visa sponsorship, Employment Pass, EP&rdquo;. A listing counts if it mentions any of
+          them. Only the first goes into the search, because long searches find very little. Anything about visas or sponsorship matches any mention of either. Anything else has
+          to appear as a whole word or phrase. Tick the box to keep only jobs that mention one, which also saves scoring the others.
         </p>
 
         {rules.length ? (

@@ -1,5 +1,5 @@
 import type { Profile } from "@/lib/profile/schema";
-import { resolveSponsorshipRules, termOf, type SponsorshipRule } from "@/lib/search/sponsorship";
+import { alternativesOf, resolveSponsorshipRules, type SponsorshipRule } from "@/lib/search/sponsorship";
 
 export type FilterableJob = {
   title: string;
@@ -61,8 +61,9 @@ export function sponsorshipRuleFor(job: Pick<FilterableJob, "location">, prefere
 
 /**
  * For a job in a country with a rule: whether its listing refuses sponsorship, says nothing about
- * what you need, or mentions it. A rule's phrase about visas or sponsorship matches any mention of
- * either; any other phrase, such as "Employment Pass", has to appear as written. Null otherwise.
+ * what you need, or mentions it. A rule can list alternatives separated by commas, and any one of
+ * them counts. One about visas or sponsorship matches any mention of either; any other, such as
+ * "Employment Pass" or "EP", has to appear as a whole word or phrase. Null for any other job.
  */
 export function sponsorshipStatus(
   job: Pick<FilterableJob, "title" | "location" | "description">,
@@ -72,12 +73,12 @@ export function sponsorshipStatus(
   if (!rule) return null;
 
   const text = `${job.title}\n${job.description ?? ""}`;
-  const term = termOf(rule);
-  if (isVisaTerm(term)) {
-    if (!VISA_WORDS.test(text)) return "unmentioned";
-    return REFUSES_SPONSORSHIP.some((pattern) => pattern.test(text)) ? "refused" : "mentioned";
-  }
-  return text.toLowerCase().includes(term.toLowerCase()) ? "mentioned" : "unmentioned";
+  const alternatives = alternativesOf(rule);
+  const visaMentioned = alternatives.some(isVisaTerm) && VISA_WORDS.test(text);
+  const otherMentioned = alternatives.some((alternative) => !isVisaTerm(alternative) && containsWord(text, alternative));
+  if (!visaMentioned && !otherMentioned) return "unmentioned";
+  // A refusal only counts when nothing else you accept, such as an Employment Pass, is offered.
+  return !otherMentioned && REFUSES_SPONSORSHIP.some((pattern) => pattern.test(text)) ? "refused" : "mentioned";
 }
 
 /** Jobs a rule set to "only show jobs that mention it" leaves out. */
@@ -123,7 +124,7 @@ export function hardFilter(
   }
   const rule = sponsorshipRuleFor(job, preferences);
   if (rule?.onlyIfMentioned && sponsorship === "unmentioned") {
-    return { reason: `The listing doesn't mention "${termOf(rule)}", which you need for jobs in ${rule.country}.`, seniorityFit: "fit", locationFit: false };
+    return { reason: `The listing doesn't mention ${alternativesOf(rule).map((alternative) => `"${alternative}"`).join(" or ")}, which you need for jobs in ${rule.country}.`, seniorityFit: "fit", locationFit: false };
   }
 
   if (job.postedAt && now.getTime() - job.postedAt.getTime() > MAX_AGE_MS) {

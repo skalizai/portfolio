@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { detectChannel, safeUrl } from "@/lib/apply/channelDetect";
+import { searchPhraseOf } from "@/lib/search/sponsorship";
 import type { FetchContext, FetchResult, JobSource, NormalisedJob } from "@/lib/sources/types";
 
 const HOST = "jsearch.p.rapidapi.com";
@@ -71,7 +72,7 @@ export type SearchQuery = { query: string; country?: string };
 export function buildQueries(keywords: string[], locations: string[], visaLocations: (string | { country: string; term: string })[] = []): SearchQuery[] {
   const labelOf = (place: string) => (COUNTRIES[place.trim().toLowerCase()]?.label ?? place.trim()).toLowerCase();
   const phraseFor = new Map(
-    visaLocations.map((place) => (typeof place === "string" ? [labelOf(place), "visa sponsorship"] : [labelOf(place.country), place.term.trim() || "visa sponsorship"])),
+    visaLocations.map((place) => (typeof place === "string" ? [labelOf(place), "visa sponsorship"] : [labelOf(place.country), searchPhraseOf(place)])),
   );
   const regions = new Map<string, { label: string; country?: string }>();
   for (const location of locations) {
