@@ -377,6 +377,18 @@ describe("morning search pacing", () => {
     ]);
   });
 
+  it("adds each country's own phrase, and knows Malaysia and Singapore", () => {
+    const rules = [
+      { country: "Singapore", term: "Employment Pass" },
+      { country: "Malaysia", term: "" },
+    ];
+    expect(buildQueries(["SAP Lead"], ["Singapore", "Kuala Lumpur", "Dubai"], rules)).toEqual([
+      { query: "SAP Lead Employment Pass in Singapore", country: "sg" },
+      { query: "SAP Lead visa sponsorship in Malaysia", country: "my" },
+      { query: "SAP Lead in UAE", country: "ae" },
+    ]);
+  });
+
   it("searches a repeated keyword only once", () => {
     expect(buildQueries(["SAP Lead", "sap lead "], ["New Zealand"])).toEqual([{ query: "SAP Lead in New Zealand", country: "nz" }]);
   });

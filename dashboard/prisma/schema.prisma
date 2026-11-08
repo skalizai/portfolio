@@ -178,6 +178,8 @@ model SearchConfig {
   scoreDailyCap    Int      @default(50)
   draftDailyCap    Int      @default(5)
   screeningAnswers Json     @default("{}")
+  // Per-country rules, such as only keeping jobs that mention visa sponsorship. Null until saved.
+  sponsorshipRules Json?
   updatedAt        DateTime @updatedAt
 
   @@schema("jobmatch")

@@ -142,7 +142,7 @@ describe("digestText", () => {
   const job = { id: "x", title: "SAP Architect", company: "Acme", location: "Sydney, NSW, Australia", description: "Great role.", url: "https://example.com/x", applyUrl: null, applyEmail: "jobs@acme.example.com", score: 82, hasDraft: false };
 
   it("shows the score, where to apply and a sponsorship warning where you need one", () => {
-    const { text } = digestText([job], { more: 0, minScore: 70, dashboardUrl: "https://dash.example.com", visaLocations: ["Australia"] });
+    const { text } = digestText([job], { more: 0, minScore: 70, dashboardUrl: "https://dash.example.com", sponsorship: { visaSponsorshipLocations: ["Australia"] } });
     expect(text).toContain("1. 82 · SAP Architect");
     expect(text).toContain("Email to apply: jobs@acme.example.com");
     expect(text).toContain("Listing: https://example.com/x");
@@ -151,7 +151,7 @@ describe("digestText", () => {
   });
 
   it("leaves out the sponsorship warning where you don't need a visa", () => {
-    const { text } = digestText([{ ...job, location: "Dubai" }], { more: 0, minScore: 70, visaLocations: ["Australia"] });
+    const { text } = digestText([{ ...job, location: "Dubai" }], { more: 0, minScore: 70, sponsorship: { visaSponsorshipLocations: ["Australia"] } });
     expect(text).not.toContain("Visa sponsorship");
     expect(text).not.toContain("Open the dashboard");
   });

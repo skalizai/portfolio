@@ -1,6 +1,6 @@
 import { applyEmailContext } from "@/lib/apply/channelDetect";
 import { db } from "@/lib/db";
-import { sponsorshipStatus } from "@/lib/matching/filters";
+import { hiddenBySponsorshipRule, sponsorshipStatus } from "@/lib/matching/filters";
 import { RULES_VERSION } from "@/lib/matching/scoreJobs";
 import { EMPTY_PROFILE } from "@/lib/profile/schema";
 import { getProfile } from "@/lib/profile/store";
@@ -45,7 +45,7 @@ export async function getJobsOverview(now = new Date()) {
     db().auditLog.findFirst({ where: { action: "jobs.fetch" }, orderBy: { at: "desc" }, select: { at: true } }),
   ]);
 
-  const preferences = stored?.profile.preferences ?? EMPTY_PROFILE.preferences;
+  const preferences = { ...(stored?.profile.preferences ?? EMPTY_PROFILE.preferences), sponsorshipRules: settings.sponsorshipRules };
 
   // Descriptions are long, so they're only used here and aren't sent to the browser.
   const rows = jobs.map(({ scores, description, application, ...job }) => ({
@@ -61,12 +61,14 @@ export async function getJobsOverview(now = new Date()) {
         }
       : null,
     sponsorshipUnmentioned: sponsorshipStatus({ title: job.title, location: job.location, description }, preferences) === "unmentioned",
+    hiddenBySponsorship: hiddenBySponsorshipRule({ title: job.title, location: job.location, description }, preferences),
   }));
 
   const byScore = <T extends { match: { score: number } | null }>(a: T, b: T) => (b.match?.score ?? 0) - (a.match?.score ?? 0);
   // Jobs you've applied for leave the lists above and wait in their own section.
   const applied = rows.filter((job) => job.application?.submitted).sort((a, b) => b.application!.submittedAt!.getTime() - a.application!.submittedAt!.getTime());
-  const open = rows.filter((job) => !job.application?.submitted);
+  // Jobs your sponsorship rules leave out aren't listed, unless you've already started on one.
+  const open = rows.filter((job) => !job.application?.submitted && (!job.hiddenBySponsorship || job.application));
   const scored = open.filter((job) => job.match);
   const needsAsking = scored.filter((job) => job.sponsorshipUnmentioned && job.match!.modelVersion !== RULES_VERSION);
   const others = scored.filter((job) => !needsAsking.includes(job));

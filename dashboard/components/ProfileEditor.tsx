@@ -245,11 +245,6 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
         <Section title="What you're looking for">
           <Lines label="Target job titles" value={profile.targetTitles} onChange={(targetTitles) => set({ targetTitles })} />
           <Lines label="Locations" value={profile.preferences.locations} onChange={(locations) => setPrefs({ locations })} />
-          <Lines
-            label="Countries where you need visa sponsorship"
-            value={profile.preferences.visaSponsorshipLocations}
-            onChange={(visaSponsorshipLocations) => setPrefs({ visaSponsorshipLocations })}
-          />
           <Lines label="Work modes" value={profile.preferences.workModes} onChange={(workModes) => setPrefs({ workModes })} />
           <Lines label="Employment types" value={profile.preferences.employmentTypes} onChange={(employmentTypes) => setPrefs({ employmentTypes })} />
           <Lines label="Exclude jobs mentioning" value={profile.preferences.excludeKeywords} onChange={(excludeKeywords) => setPrefs({ excludeKeywords })} />

@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
-import { sponsorshipStatus } from "@/lib/matching/filters";
+import { hiddenBySponsorshipRule, sponsorshipStatus, type SponsorshipPreferences } from "@/lib/matching/filters";
 import { RULES_VERSION } from "@/lib/matching/scoreJobs";
-import { getProfile } from "@/lib/profile/store";
 import { getSearchSettings } from "@/lib/search/settings";
 
 /** The most jobs in one email. Any others wait for the next one. */
@@ -51,7 +50,7 @@ export type DigestJob = {
 
 export function digestText(
   jobs: DigestJob[],
-  options: { more: number; minScore: number; dashboardUrl?: string; visaLocations: string[] },
+  options: { more: number; minScore: number; dashboardUrl?: string; sponsorship: SponsorshipPreferences },
 ): { subject: string; text: string } {
   const top = jobs[0]!;
   const subject =
@@ -61,7 +60,7 @@ export function digestText(
 
   const blocks = jobs.map((job, index) => {
     const lines = [`${index + 1}. ${job.score} · ${job.title}`, `   ${job.company}${job.location ? ` · ${job.location}` : ""}`];
-    if (sponsorshipStatus(job, { visaSponsorshipLocations: options.visaLocations }) === "unmentioned") {
+    if (sponsorshipStatus(job, options.sponsorship) === "unmentioned") {
       lines.push("   Visa sponsorship isn't mentioned, so check before applying.");
     }
     if (job.applyEmail) lines.push(`   Email to apply: ${job.applyEmail}`);
@@ -90,7 +89,8 @@ export async function sendDigest(options: { deliver?: DigestDeliver; now?: Date 
   }
   if (!to) return { status: "not-configured", message: "There's no address to send the daily email to." };
 
-  const [settings, stored] = await Promise.all([getSearchSettings(), getProfile()]);
+  const settings = await getSearchSettings();
+  const sponsorship = { visaSponsorshipLocations: settings.visaSponsorshipLocations, sponsorshipRules: settings.sponsorshipRules };
   const candidates = await db().job.findMany({
     where: {
       notifiedAt: null,
@@ -113,7 +113,7 @@ export async function sendDigest(options: { deliver?: DigestDeliver; now?: Date 
 
   // Judged on the latest score, so a job that has since dropped below your minimum isn't sent.
   const matches: DigestJob[] = candidates
-    .filter((job) => !job.application?.submittedAt && (job.scores[0]?.score ?? 0) >= settings.minScore)
+    .filter((job) => !job.application?.submittedAt && (job.scores[0]?.score ?? 0) >= settings.minScore && !hiddenBySponsorshipRule(job, sponsorship))
     .map(({ scores, application, ...job }) => ({ ...job, score: scores[0]!.score, hasDraft: Boolean(application) }))
     .sort((a, b) => b.score - a.score);
   if (!matches.length) return { status: "nothing-new" };
@@ -124,7 +124,7 @@ export async function sendDigest(options: { deliver?: DigestDeliver; now?: Date 
     more,
     minScore: settings.minScore,
     dashboardUrl: process.env.DASHBOARD_URL?.trim() || undefined,
-    visaLocations: stored?.profile.preferences.visaSponsorshipLocations ?? [],
+    sponsorship,
   });
 
   await (options.deliver ?? deliverByResend)({ to, subject, text });

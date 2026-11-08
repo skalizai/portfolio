@@ -26,8 +26,8 @@ export type FetchContext = {
   now: Date;
   keywords: string[];
   locations: string[];
-  /** Places where the search should look for jobs offering visa sponsorship. */
-  visaLocations?: string[];
+  /** Places where the search should add a phrase, such as "visa sponsorship". A bare name uses that phrase. */
+  visaLocations?: (string | { country: string; term: string })[];
   /** Requests this source has made so far, so it can stay inside its quota. */
   usage: { requestsThisMonth: number; requestsToday: number };
   /** A single search to run instead of the usual rotation. */

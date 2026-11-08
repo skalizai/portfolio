@@ -1,4 +1,5 @@
 import type { Profile } from "@/lib/profile/schema";
+import { resolveSponsorshipRules, termOf, type SponsorshipRule } from "@/lib/search/sponsorship";
 
 export type FilterableJob = {
   title: string;
@@ -23,6 +24,8 @@ const MARKETS = [
   // States as well as cities, because listings often give only a suburb, like "Beenleigh QLD 4207".
   ["australia", "sydney", "melbourne", "brisbane", "perth", "adelaide", "canberra", "nsw", "new south wales", "vic", "victoria", "qld", "queensland", "wa", "tas", "tasmania", "act", "australian capital territory"],
   ["new zealand", "auckland", "wellington", "christchurch", "hamilton", "tauranga", "dunedin", "canterbury", "waikato", "otago"],
+  ["singapore"],
+  ["malaysia", "kuala lumpur", "selangor", "penang", "johor", "cyberjaya", "putrajaya", "petaling jaya"],
 ];
 
 const BELOW_SENIOR = /\b(junior|jr|intern|internship|trainee|graduate|entry[- ]level|mid[- ]level|associate(?! (director|partner|principal|vice)))\b/i;
@@ -43,20 +46,43 @@ const REFUSES_SPONSORSHIP = [
   /\b(sponsor\w*|visas?)\b[^.\n]{0,40}\b(not|unavailable|isn't|cannot)\b/i,
 ];
 
+export type SponsorshipPreferences = Pick<Profile["preferences"], "visaSponsorshipLocations"> & { sponsorshipRules?: SponsorshipRule[] };
+
+const VISA_WORDS = /\b(visas?|sponsor\w*)\b/i;
+const isVisaTerm = (term: string) => VISA_WORDS.test(term);
+
+/** The rule for a job's country, if you have one there. */
+export function sponsorshipRuleFor(job: Pick<FilterableJob, "location">, preferences: SponsorshipPreferences): SponsorshipRule | null {
+  const location = job.location?.toLowerCase();
+  if (!location) return null;
+  const rules = preferences.sponsorshipRules ?? resolveSponsorshipRules(null, preferences.visaSponsorshipLocations);
+  return rules.find((rule) => isInPlace(location, rule.country)) ?? null;
+}
+
 /**
- * For a job in a country where you need sponsorship: whether its listing refuses it, says nothing,
- * or says something Claude should judge, like a bare "Sponsorship:". Null for any other job.
+ * For a job in a country with a rule: whether its listing refuses sponsorship, says nothing about
+ * what you need, or mentions it. A rule's phrase about visas or sponsorship matches any mention of
+ * either; any other phrase, such as "Employment Pass", has to appear as written. Null otherwise.
  */
 export function sponsorshipStatus(
   job: Pick<FilterableJob, "title" | "location" | "description">,
-  preferences: Pick<Profile["preferences"], "visaSponsorshipLocations">,
+  preferences: SponsorshipPreferences,
 ): "refused" | "unmentioned" | "mentioned" | null {
-  const location = job.location?.toLowerCase();
-  if (!location || !preferences.visaSponsorshipLocations.some((place) => isInPlace(location, place))) return null;
+  const rule = sponsorshipRuleFor(job, preferences);
+  if (!rule) return null;
 
   const text = `${job.title}\n${job.description ?? ""}`;
-  if (!/\b(visas?|sponsor\w*)\b/i.test(text)) return "unmentioned";
-  return REFUSES_SPONSORSHIP.some((pattern) => pattern.test(text)) ? "refused" : "mentioned";
+  const term = termOf(rule);
+  if (isVisaTerm(term)) {
+    if (!VISA_WORDS.test(text)) return "unmentioned";
+    return REFUSES_SPONSORSHIP.some((pattern) => pattern.test(text)) ? "refused" : "mentioned";
+  }
+  return text.toLowerCase().includes(term.toLowerCase()) ? "mentioned" : "unmentioned";
+}
+
+/** Jobs a rule set to "only show jobs that mention it" leaves out. */
+export function hiddenBySponsorshipRule(job: Pick<FilterableJob, "title" | "location" | "description">, preferences: SponsorshipPreferences): boolean {
+  return Boolean(sponsorshipRuleFor(job, preferences)?.onlyIfMentioned) && sponsorshipStatus(job, preferences) === "unmentioned";
 }
 
 function isWantedLocation(job: FilterableJob, wanted: string[]): boolean {
@@ -76,7 +102,7 @@ function isWantedLocation(job: FilterableJob, wanted: string[]): boolean {
  */
 export function hardFilter(
   job: FilterableJob,
-  preferences: Profile["preferences"],
+  preferences: Profile["preferences"] & { sponsorshipRules?: SponsorshipRule[] },
   wantedLocations: string[],
   now: Date,
 ): FilterResult | null {
@@ -91,8 +117,13 @@ export function hardFilter(
     return { reason: `${job.location} isn't in your search locations.`, seniorityFit: "fit", locationFit: false };
   }
 
-  if (sponsorshipStatus(job, preferences) === "refused") {
+  const sponsorship = sponsorshipStatus(job, preferences);
+  if (sponsorship === "refused") {
     return { reason: "This listing says visa sponsorship isn't available, and you need it in this country.", seniorityFit: "fit", locationFit: false };
+  }
+  const rule = sponsorshipRuleFor(job, preferences);
+  if (rule?.onlyIfMentioned && sponsorship === "unmentioned") {
+    return { reason: `The listing doesn't mention "${termOf(rule)}", which you need for jobs in ${rule.country}.`, seniorityFit: "fit", locationFit: false };
   }
 
   if (job.postedAt && now.getTime() - job.postedAt.getTime() > MAX_AGE_MS) {

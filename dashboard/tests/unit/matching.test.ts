@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hardFilter, sponsorshipStatus, type FilterableJob } from "@/lib/matching/filters";
+import { hardFilter, hiddenBySponsorshipRule, sponsorshipStatus, type FilterableJob } from "@/lib/matching/filters";
 import { keywordScore, matchesTargetTitle, MIN_KEYWORD_SCORE } from "@/lib/matching/keywordScore";
 import { llmScore, scoringPrompt, type MatchResult, type ScoreCallResult } from "@/lib/matching/llmScore";
 import { EMPTY_PROFILE, type Profile } from "@/lib/profile/schema";
@@ -58,6 +58,36 @@ describe("hardFilter", () => {
     expect(hardFilter(job("SAP Lead", "Auckland"), PROFILE.preferences, wanted, NOW)).toBeNull();
     expect(hardFilter(job("SAP Lead", "Sydney NSW"), PROFILE.preferences, wanted, NOW)).toBeNull();
     expect(hardFilter(job("SAP Lead", "Dubai"), PROFILE.preferences, wanted, NOW)?.locationFit).toBe(false);
+  });
+
+  describe("per-country sponsorship rules", () => {
+    const rules = [
+      { country: "Australia", term: "visa sponsorship", onlyIfMentioned: true },
+      { country: "Singapore", term: "Employment Pass", onlyIfMentioned: true },
+      { country: "Malaysia", term: "", onlyIfMentioned: false },
+    ];
+    const preferences = { ...PROFILE.preferences, sponsorshipRules: rules };
+    const wanted = ["Australia", "Singapore", "Malaysia", "Dubai"];
+    const check = (location: string, description: string) => hardFilter({ title: "SAP Lead", location, workMode: null, postedAt: null, description }, preferences, wanted, NOW);
+
+    it("rules out a listing that doesn't mention what a strict country needs", () => {
+      expect(check("Sydney NSW", "Lead our SAP team.")?.reason).toBe(`The listing doesn't mention "visa sponsorship", which you need for jobs in Australia.`);
+      expect(check("Sydney NSW", "We offer visa sponsorship for the right person.")).toBeNull();
+      expect(check("Sydney NSW", "We are unable to offer visa sponsorship.")?.reason).toContain("isn't available");
+    });
+
+    it("matches a custom phrase as written, and leaves non-strict countries and others alone", () => {
+      expect(check("Singapore", "Visa support offered.")?.reason).toContain('"Employment Pass"');
+      expect(check("Singapore", "We will support your employment pass application.")).toBeNull();
+      expect(check("Kuala Lumpur, Malaysia", "Lead our SAP team.")).toBeNull();
+      expect(sponsorshipStatus({ title: "SAP Lead", location: "Kuala Lumpur", description: "Lead." }, preferences)).toBe("unmentioned");
+      expect(check("Dubai", "Lead our SAP team.")).toBeNull();
+    });
+
+    it("says which jobs a strict rule hides", () => {
+      expect(hiddenBySponsorshipRule({ title: "SAP Lead", location: "Perth WA", description: "Lead." }, preferences)).toBe(true);
+      expect(hiddenBySponsorshipRule({ title: "SAP Lead", location: "Penang", description: "Lead." }, preferences)).toBe(false);
+    });
   });
 
   describe("visa sponsorship", () => {

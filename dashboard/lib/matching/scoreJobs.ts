@@ -64,7 +64,7 @@ export async function scoreNewJobs(options: { now?: Date; call?: ScoreCall; pars
   const base = { matchedSkills: [], missingSkills: [], keyRequirements: [], redFlags: [], verdict: "REJECT" as const, modelVersion: RULES_VERSION, profileUpdatedAt };
 
   for (const job of jobs) {
-    const filtered = hardFilter(job, profile.preferences, settings.locations, now);
+    const filtered = hardFilter(job, { ...profile.preferences, sponsorshipRules: settings.sponsorshipRules }, settings.locations, now);
     const points = filtered ? 0 : keywordScore(job, profile);
     if (filtered) {
       ruledOut.push({ ...base, jobId: job.id, score: 0, seniorityFit: filtered.seniorityFit, locationFit: filtered.locationFit, reasoning: filtered.reason });

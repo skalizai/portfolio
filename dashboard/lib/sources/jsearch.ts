@@ -31,6 +31,8 @@ const COUNTRIES: Record<string, { country: string; label: string }> = {
   singapore: { country: "sg", label: "Singapore" },
   india: { country: "in", label: "India" },
   canada: { country: "ca", label: "Canada" },
+  malaysia: { country: "my", label: "Malaysia" },
+  "kuala lumpur": { country: "my", label: "Malaysia" },
   australia: { country: "au", label: "Australia" },
   "new zealand": { country: "nz", label: "New Zealand" },
 };
@@ -66,9 +68,11 @@ const JSearchResponse = z.object({ status: z.string().optional(), data: z.object
 export type SearchQuery = { query: string; country?: string };
 
 /** One search per title and region. Dubai, Abu Dhabi and UAE all search the same market. */
-export function buildQueries(keywords: string[], locations: string[], visaLocations: string[] = []): SearchQuery[] {
+export function buildQueries(keywords: string[], locations: string[], visaLocations: (string | { country: string; term: string })[] = []): SearchQuery[] {
   const labelOf = (place: string) => (COUNTRIES[place.trim().toLowerCase()]?.label ?? place.trim()).toLowerCase();
-  const needsVisa = new Set(visaLocations.map(labelOf));
+  const phraseFor = new Map(
+    visaLocations.map((place) => (typeof place === "string" ? [labelOf(place), "visa sponsorship"] : [labelOf(place.country), place.term.trim() || "visa sponsorship"])),
+  );
   const regions = new Map<string, { label: string; country?: string }>();
   for (const location of locations) {
     const known = COUNTRIES[location.trim().toLowerCase()];
@@ -91,7 +95,7 @@ export function buildQueries(keywords: string[], locations: string[], visaLocati
       query:
         label.toLowerCase() === "remote"
           ? `${keyword} remote`
-          : `${keyword}${needsVisa.has(label.toLowerCase()) ? " visa sponsorship" : ""} in ${label}`,
+          : `${keyword}${phraseFor.has(label.toLowerCase()) ? ` ${phraseFor.get(label.toLowerCase())}` : ""} in ${label}`,
       ...(country ? { country } : {}),
     })),
   );

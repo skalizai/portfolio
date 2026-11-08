@@ -158,6 +158,37 @@ test.describe.serial("applications board", () => {
     await anonymous.dispose();
   });
 
+  test("sponsorship countries are set in Settings, and a strict one hides listings that don't mention it", async ({ page, context, playwright, baseURL }) => {
+    await addJobOnly("visa-quiet", "SAP Quiet Lead", "Lead our SAP team.");
+    await addJobOnly("visa-offered", "SAP Offered Lead", "Visa sponsorship is available for this role.");
+    const client = new pg.Client({ connectionString: `postgresql://postgres:postgres@127.0.0.1:${TEST_DB_PORT}/postgres?sslmode=disable` });
+    await client.connect();
+    await client.query(`UPDATE jobmatch."Job" SET location = 'Singapore' WHERE id IN ('visa-quiet', 'visa-offered')`);
+    await client.end();
+
+    await page.goto("/settings");
+    const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Countries that need visa sponsorship" }) });
+    await section.getByRole("button", { name: "Add a country" }).click();
+    await section.getByLabel("Country", { exact: true }).last().fill("Singapore");
+    await expect(section.getByRole("checkbox", { name: /Only show jobs that mention it/ }).last()).toBeChecked();
+    await section.getByRole("button", { name: "Save countries" }).click();
+    await expect(section.getByRole("status")).toContainText("Saved.");
+    await expect(section.getByRole("status")).toContainText("Singapore was also added to your search locations.");
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "SAP Offered Lead" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "SAP Quiet Lead" })).toHaveCount(0);
+
+    expect((await context.request.put("/api/settings/sponsorship", { data: { rules: [{ country: "", term: "", onlyIfMentioned: true }] } })).status()).toBe(400);
+    const anonymous = await playwright.request.newContext({ baseURL });
+    expect((await anonymous.put("/api/settings/sponsorship", { data: { rules: [] } })).status()).toBe(401);
+    await anonymous.dispose();
+
+    // Cleared again, so later tests see every job.
+    expect((await context.request.put("/api/settings/sponsorship", { data: { rules: [] } })).status()).toBe(200);
+  });
+
   test("removing your address goes back to the one in the listing", async ({ context }) => {
     await addJobOnly("mail-listing", "SAP Listing Email", "Email your resume to hr@listing.example.com today.");
     const set = await context.request.post("/api/jobs/mail-listing/email", { data: { email: "other@example.com" } });
