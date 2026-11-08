@@ -25,8 +25,14 @@ export const alternativesOf = (rule: Pick<SponsorshipRule, "term">) =>
     .map((part) => part.trim())
     .filter(Boolean);
 
-/** Only the first alternative goes into the search, because long searches find very little. */
-export const searchPhraseOf = (rule: Pick<SponsorshipRule, "term">) => alternativesOf(rule)[0] ?? DEFAULT_SPONSORSHIP_TERM;
+/**
+ * Each alternative gets its own search, except very short ones such as "EP", which would find
+ * unrelated jobs. Those are still used to check listings.
+ */
+export function searchPhrasesOf(rule: Pick<SponsorshipRule, "term">): string[] {
+  const phrases = alternativesOf(rule).filter((alternative) => alternative.length >= 4);
+  return phrases.length ? phrases : [DEFAULT_SPONSORSHIP_TERM];
+}
 
 /** Rules saved in Settings, or else the countries listed on the profile before rules existed. */
 export function resolveSponsorshipRules(saved: unknown, profileCountries: string[]): SponsorshipRule[] {

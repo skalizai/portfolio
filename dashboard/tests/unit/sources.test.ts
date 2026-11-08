@@ -389,6 +389,15 @@ describe("morning search pacing", () => {
     ]);
   });
 
+  it("searches each phrase a country lists, but not very short ones", () => {
+    const rules = [{ country: "Singapore", term: "Visa Sponsorship, Employment pass, EP" }];
+    expect(buildQueries(["SAP Lead"], ["Singapore", "Remote"], rules)).toEqual([
+      { query: "SAP Lead Visa Sponsorship in Singapore", country: "sg" },
+      { query: "SAP Lead Employment pass in Singapore", country: "sg" },
+      { query: "SAP Lead remote" },
+    ]);
+  });
+
   it("searches a repeated keyword only once", () => {
     expect(buildQueries(["SAP Lead", "sap lead "], ["New Zealand"])).toEqual([{ query: "SAP Lead in New Zealand", country: "nz" }]);
   });
