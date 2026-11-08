@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { fallbackParams, llmModel } from "@/lib/llm";
+import { fallbackParams, scoringModel } from "@/lib/llm";
 import type { Profile } from "@/lib/profile/schema";
 
 const MatchResultSchema = z.object({
@@ -50,7 +50,7 @@ export type ScoreCall = (system: string, user: string) => Promise<ScoreCallResul
 
 const callClaude: ScoreCall = async (system, user) => {
   const client = new Anthropic({ timeout: 60_000, maxRetries: 1 });
-  const model = llmModel();
+  const model = scoringModel();
   const response = await client.beta.messages.parse({
     model,
     max_tokens: 16000,

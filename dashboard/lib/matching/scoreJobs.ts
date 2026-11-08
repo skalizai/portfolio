@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getStructuredCv, type ParseCall } from "@/lib/apply/parseCv";
 import { db } from "@/lib/db";
-import { llmModel } from "@/lib/llm";
+import { scoringModel } from "@/lib/llm";
 import { hardFilter } from "@/lib/matching/filters";
 import { keywordScore, matchesTargetTitle, MIN_KEYWORD_SCORE } from "@/lib/matching/keywordScore";
 import { llmScore, type ScoreCall } from "@/lib/matching/llmScore";
@@ -46,13 +46,14 @@ export async function scoreNewJobs(options: { now?: Date; call?: ScoreCall; pars
   if (!stored) return { ...report, errors: ["Add your profile before scoring jobs."] };
   const { profile, updatedAt: profileUpdatedAt } = stored;
   const settings = await getSearchSettings();
-  const model = llmModel();
+  const model = scoringModel();
 
   const jobs = await db().job.findMany({
     where: {
       state: { not: "DISMISSED" },
       application: { is: null },
-      scores: { none: { profileUpdatedAt, modelVersion: { in: [model, RULES_VERSION] } } },
+      // Any score for the current profile counts, so changing the scoring model doesn't re-score every job.
+      scores: { none: { profileUpdatedAt } },
     },
     orderBy: [{ postedAt: { sort: "desc", nulls: "last" } }, { fetchedAt: "desc" }],
     select: { id: true, title: true, company: true, location: true, workMode: true, employmentType: true, description: true, postedAt: true },

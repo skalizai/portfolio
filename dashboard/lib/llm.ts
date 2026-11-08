@@ -1,5 +1,10 @@
 const FALLBACK_MODELS = new Set(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
 
+/** Scoring runs on every new job, so it uses the low-cost model unless SCORING_MODEL says otherwise. */
+export function scoringModel(): string {
+  return process.env.SCORING_MODEL || "claude-haiku-5-5";
+}
+
 export function llmModel(): string {
   return process.env.LLM_MODEL || "claude-sonnet-5-5";
 }
