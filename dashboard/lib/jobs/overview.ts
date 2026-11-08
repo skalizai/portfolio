@@ -56,6 +56,7 @@ export async function getJobsOverview(now = new Date()) {
       ? {
           id: application.id,
           submitted: application.submittedAt !== null,
+          submittedAt: application.submittedAt,
           hasLetter: Boolean(application.coverLetter?.trim()),
         }
       : null,
@@ -63,7 +64,10 @@ export async function getJobsOverview(now = new Date()) {
   }));
 
   const byScore = <T extends { match: { score: number } | null }>(a: T, b: T) => (b.match?.score ?? 0) - (a.match?.score ?? 0);
-  const scored = rows.filter((job) => job.match);
+  // Jobs you've applied for leave the lists above and wait in their own section.
+  const applied = rows.filter((job) => job.application?.submitted).sort((a, b) => b.application!.submittedAt!.getTime() - a.application!.submittedAt!.getTime());
+  const open = rows.filter((job) => !job.application?.submitted);
+  const scored = open.filter((job) => job.match);
   const needsAsking = scored.filter((job) => job.sponsorshipUnmentioned && job.match!.modelVersion !== RULES_VERSION);
   const others = scored.filter((job) => !needsAsking.includes(job));
 
@@ -75,7 +79,8 @@ export async function getJobsOverview(now = new Date()) {
     matches,
     sponsorshipUnknown: needsAsking.sort(byScore),
     below: others.filter((job) => job.match!.score < settings.minScore).sort(byScore),
-    waiting: rows.filter((job) => !job.match),
+    waiting: open.filter((job) => !job.match),
+    applied,
     minScore: settings.minScore,
     applicantName: stored?.profile.name ?? "",
     newMatches: matches.filter((job) => job.match!.createdAt.getTime() >= dayAgo).length,

@@ -79,6 +79,7 @@ function JobCard({
   onPrepare,
   onOpen,
   onState,
+  onApplied,
   onChanged,
 }: {
   job: JobRow;
@@ -89,10 +90,13 @@ function JobCard({
   onPrepare: () => void;
   onOpen: (applicationId: string) => void;
   onState: (state: "ACTIVE" | "SAVED" | "DISMISSED") => void;
+  onApplied: (applied: boolean) => Promise<boolean>;
   onChanged: () => void;
 }) {
   const { match, application } = job;
   const status = statusLabel(job);
+  // Shows the tick at once, while the job moves to its new section.
+  const [ticked, setTicked] = useState(Boolean(application?.submitted));
   return (
     <li className="rounded-xl border border-line bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -167,7 +171,15 @@ function JobCard({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="mr-1 flex items-center gap-2 rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium">
+          <input type="checkbox" className="size-4" checked={ticked} disabled={busy} onChange={(e) => {
+              const value = e.target.checked;
+              setTicked(value);
+              void onApplied(value).then((saved) => saved || setTicked(!value));
+            }} />
+          Applied <span className="sr-only">for {job.title} at {job.company}</span>
+        </label>
         {application ? (
           <Button type="button" size="sm" onClick={() => onOpen(application.id)}>
             {application.submitted ? "View application" : "Review draft"} <span className="sr-only">for {job.title} at {job.company}</span>
@@ -216,6 +228,7 @@ export function JobsBoard({
   sponsorshipUnknown,
   below,
   waiting,
+  applied,
   minScore,
   applicantName,
   screening,
@@ -224,6 +237,7 @@ export function JobsBoard({
   sponsorshipUnknown: JobRow[];
   below: JobRow[];
   waiting: JobRow[];
+  applied: JobRow[];
   minScore: number;
   applicantName: string;
   screening: ScreeningAnswers;
@@ -240,7 +254,7 @@ export function JobsBoard({
   const [queueIndex, setQueueIndex] = useState(0);
   const [message, setMessage] = useState("");
 
-  const allJobs = [...matches, ...sponsorshipUnknown, ...below, ...waiting];
+  const allJobs = [...matches, ...sponsorshipUnknown, ...below, ...waiting, ...applied];
   const sources = [...new Set(allJobs.map((job) => job.publisher).filter((name): name is string => Boolean(name)))].sort();
   const needle = query.trim().toLowerCase();
 
@@ -317,6 +331,24 @@ export function JobsBoard({
     router.refresh();
   }
 
+  async function setApplied(job: JobRow, value: boolean): Promise<boolean> {
+    const response = await fetch(`/api/jobs/${job.id}/applied`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ applied: value }),
+    }).catch(() => null);
+    const body = await response?.json().catch(() => null);
+    setMessage(
+      response?.ok
+        ? value
+          ? `Moved ${job.title} at ${job.company} to Applied.`
+          : `Moved ${job.title} at ${job.company} back to your matches.`
+        : (body?.error ?? "Couldn't update that job. Please try again."),
+    );
+    router.refresh();
+    return Boolean(response?.ok);
+  }
+
   const list = (jobs: JobRow[]) => (
     <ul className="mt-3 grid gap-3">
       {jobs.map((job) => (
@@ -340,6 +372,7 @@ export function JobsBoard({
             setQueueIndex(0);
           }}
           onState={(state) => setJobState(job, state)}
+          onApplied={(value) => setApplied(job, value)}
           onChanged={() => router.refresh()}
         />
       ))}
@@ -425,6 +458,7 @@ export function JobsBoard({
       )}
       {collapsed("Below your minimum score", visible(below))}
       {collapsed("Waiting to be scored", visible(waiting))}
+      {collapsed("Applied", visible(applied), "Jobs you've ticked as applied. Untick one to move it back. Track interviews and outcomes on the Applications page.")}
 
       {queue[queueIndex] && (
         <ApplyDrawer

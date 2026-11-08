@@ -74,7 +74,7 @@ describe("decideAccess", () => {
     const bearer = `Bearer ${CRON}`;
     expect(decide("/api/jobs/fetch", null, bearer)).toBe("allow");
     expect(decide("/api/jobs/score", null, bearer)).toBe("allow");
-    expect(decide("/api/applications/auto", null, bearer)).toBe("allow");
+    expect(decide("/api/applications/auto", null, bearer)).toBe("unauthorized");
     expect(decide("/api/notify/digest", null, bearer)).toBe("allow");
     expect(decide("/api/cron/search", null, bearer)).toBe("allow");
     expect(decide("/api/cron/digest", null, bearer)).toBe("allow");

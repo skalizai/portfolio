@@ -16,8 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "jobs:fetch": "tsx scripts/fetch-jobs.ts",
     "jobs:score": "tsx scripts/score-jobs.ts",
-    "scoring:check": "tsx scripts/check-scoring.ts",
-    "drafts:prepare": "tsx scripts/prepare-drafts.ts"
+    "scoring:check": "tsx scripts/check-scoring.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",

@@ -3,13 +3,10 @@ import { draftApplication, type DraftCall } from "@/lib/apply/draft";
 import { getStructuredCv, type ParseCall } from "@/lib/apply/parseCv";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import { sponsorshipStatus } from "@/lib/matching/filters";
-import { RULES_VERSION } from "@/lib/matching/scoreJobs";
 import { getProfile } from "@/lib/profile/store";
 import { getSearchSettings } from "@/lib/search/settings";
 
 const REPEAT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-const STOP_STARTING_AFTER_MS = 150_000;
 
 export type PrepareResult =
   | { jobId: string; status: "created" | "exists"; applicationId: string }
@@ -85,35 +82,3 @@ export async function prepareDraft(jobId: string, options: Calls & { now?: Date 
   }
 }
 
-/** The morning run: drafts for the best new matches, up to today's limit. */
-export async function prepareNewMatches(options: Calls & { now?: Date } = {}): Promise<{ created: number; more: boolean; errors: string[] }> {
-  const startedAt = Date.now();
-  const settings = await getSearchSettings();
-  const stored = await getProfile();
-  if (!stored) return { created: 0, more: false, errors: ["Add your profile before preparing drafts."] };
-
-  const jobs = await db().job.findMany({
-    where: {
-      state: { not: "DISMISSED" },
-      application: { is: null },
-      scores: { some: { score: { gte: settings.minScore }, modelVersion: { not: RULES_VERSION }, profileUpdatedAt: stored.updatedAt } },
-    },
-    select: { id: true, title: true, description: true, location: true, scores: { where: { profileUpdatedAt: stored.updatedAt }, orderBy: { score: "desc" }, take: 1, select: { score: true } } },
-  });
-
-  // Jobs that may not offer the sponsorship you need wait for you to choose them.
-  const queue = jobs
-    .filter((job) => sponsorshipStatus(job, stored.profile.preferences) !== "unmentioned")
-    .sort((a, b) => (b.scores[0]?.score ?? 0) - (a.scores[0]?.score ?? 0));
-
-  let created = 0;
-  const errors: string[] = [];
-  for (const job of queue) {
-    if (Date.now() - startedAt > STOP_STARTING_AFTER_MS) return { created, more: true, errors };
-    const result = await prepareDraft(job.id, options);
-    if (result.status === "created") created++;
-    if (result.status === "capped") break;
-    if (result.status === "failed" && !errors.includes(result.message)) errors.push(result.message);
-  }
-  return { created, more: false, errors };
-}

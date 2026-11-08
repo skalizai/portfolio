@@ -67,10 +67,9 @@ test.describe.serial("drafts", () => {
     expect((await anonymous.get("/api/applications/x/cv")).status()).toBe(401);
     expect((await anonymous.post("/api/applications/x/mark-submitted")).status()).toBe(401);
     expect((await anonymous.post("/api/jobs/x/state", { data: { state: "DISMISSED" } })).status()).toBe(401);
-    expect((await anonymous.post("/api/applications/auto")).status()).toBe(401);
 
     const headers = { authorization: `Bearer ${TEST_CRON_SECRET}` };
-    expect((await anonymous.post("/api/applications/auto", { headers })).status()).toBe(200);
+    expect((await anonymous.post("/api/applications", { headers, data: { jobIds: ["x"] } })).status()).toBe(401);
     expect((await anonymous.get("/api/applications/x", { headers })).status()).toBe(401);
     expect((await anonymous.post("/api/applications/x/mark-submitted", { headers })).status()).toBe(401);
     await anonymous.dispose();

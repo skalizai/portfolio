@@ -175,7 +175,6 @@ describe("preparing drafts", () => {
   let pg: PGlite;
   let db: typeof import("@/lib/db").db;
   let prepareDraft: typeof import("@/lib/apply/prepare").prepareDraft;
-  let prepareNewMatches: typeof import("@/lib/apply/prepare").prepareNewMatches;
   let saveProfile: typeof import("@/lib/profile/store").saveProfile;
   let getStructuredCv: typeof import("@/lib/apply/parseCv").getStructuredCv;
 
@@ -203,7 +202,7 @@ describe("preparing drafts", () => {
 
     process.env.DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PORT}/postgres?sslmode=disable`;
     ({ db } = await import("@/lib/db"));
-    ({ prepareDraft, prepareNewMatches } = await import("@/lib/apply/prepare"));
+    ({ prepareDraft } = await import("@/lib/apply/prepare"));
     ({ saveProfile } = await import("@/lib/profile/store"));
     ({ getStructuredCv } = await import("@/lib/apply/parseCv"));
   });
@@ -308,29 +307,4 @@ describe("preparing drafts", () => {
     expect(await db().application.count()).toBe(0);
   });
 
-  describe("the morning run", () => {
-    it("drafts the best matches first, within the limit, and never sends", async () => {
-      await db().searchConfig.create({ data: { keywords: [], locations: [], sourcesEnabled: [], draftDailyCap: 2 } });
-      await addJob("low", {}, 75);
-      await addJob("top", {}, 95);
-      await addJob("mid", {}, 85);
-      await addJob("under", {}, 50);
-
-      expect(await prepareNewMatches(options())).toMatchObject({ created: 2, more: false, errors: [] });
-      const drafted = await db().application.findMany({ select: { jobId: true, status: true, submittedAt: true, sendAt: true, emailMessageId: true } });
-      expect(drafted.map((a) => a.jobId).sort()).toEqual(["mid", "top"]);
-      expect(drafted.every((a) => a.status === "DRAFT" && !a.submittedAt && !a.sendAt && !a.emailMessageId)).toBe(true);
-    });
-
-    it("leaves dismissed jobs and those needing a sponsorship question for you", async () => {
-      await saveProfile({ ...PROFILE, preferences: { ...PROFILE.preferences, visaSponsorshipLocations: ["New Zealand"] } }, "Some CV text");
-      await addJob("gone", { state: "DISMISSED" }, 90);
-      await addJob("silent", { location: "Auckland", description: "CPI lead" }, 90);
-      await addJob("offers", { location: "Auckland", description: "CPI lead. Visa sponsorship provided." }, 90);
-
-      expect(await prepareNewMatches(options())).toMatchObject({ created: 1 });
-      const drafted = await db().application.findMany({ select: { jobId: true } });
-      expect(drafted.map((a) => a.jobId)).toEqual(["offers"]);
-    });
-  });
 });

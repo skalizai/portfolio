@@ -123,6 +123,41 @@ test.describe.serial("applications board", () => {
     expect((await context.request.post("/api/jobs/nope/email", { data: { email: "a@b.com" } })).status()).toBe(404);
   });
 
+  test("ticking Applied moves a job to the Applied section, and unticking moves it back", async ({ page, context, playwright, baseURL }) => {
+    await addJobOnly("tick-plain", "SAP Tick Plain");
+    await seed("tick-draft", "SAP Tick Draft", false);
+
+    await page.goto("/");
+    const matches = page.locator("section[aria-label=Jobs] > ul").first();
+    await expect(matches.getByRole("heading", { name: "SAP Tick Plain" })).toBeVisible();
+
+    await page.getByRole("checkbox", { name: /Applied\s+for SAP Tick Plain/ }).check();
+    await expect(page.getByRole("status").first()).toHaveText("Moved SAP Tick Plain at Board Co to Applied.");
+    const appliedSection = page.locator("details").filter({ has: page.getByText(/^Applied \(/) });
+    await appliedSection.locator("summary").click();
+    await expect(appliedSection.getByRole("heading", { name: "SAP Tick Plain" })).toBeVisible();
+    await expect(appliedSection.getByRole("checkbox", { name: /Applied\s+for SAP Tick Plain/ })).toBeChecked();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    // It also shows as applied on the Applications page.
+    await page.goto("/applications");
+    await expect(page.getByRole("region", { name: "Applied" }).getByRole("heading", { name: "SAP Tick Plain" })).toBeVisible();
+
+    // Unticking a job with no cover letter removes the record; a drafted one goes back to being a draft.
+    expect(await (await context.request.post("/api/jobs/tick-plain/applied", { data: { applied: false } })).json()).toEqual({ status: "not-applied" });
+    await context.request.post("/api/jobs/tick-draft/applied", { data: { applied: true } });
+    await context.request.post("/api/jobs/tick-draft/applied", { data: { applied: false } });
+    expect(await (await context.request.get("/api/applications/app-tick-draft")).json()).toMatchObject({ status: "DRAFT", submittedAt: null, coverLetter: "Dear Hiring Manager," });
+
+    await page.goto("/");
+    await expect(page.locator("section[aria-label=Jobs] > ul").first().getByRole("heading", { name: "SAP Tick Plain" })).toBeVisible();
+
+    expect((await context.request.post("/api/jobs/nope/applied", { data: { applied: true } })).status()).toBe(404);
+    const anonymous = await playwright.request.newContext({ baseURL });
+    expect((await anonymous.post("/api/jobs/tick-plain/applied", { data: { applied: true } })).status()).toBe(401);
+    await anonymous.dispose();
+  });
+
   test("removing your address goes back to the one in the listing", async ({ context }) => {
     await addJobOnly("mail-listing", "SAP Listing Email", "Email your resume to hr@listing.example.com today.");
     const set = await context.request.post("/api/jobs/mail-listing/email", { data: { email: "other@example.com" } });
