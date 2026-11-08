@@ -79,7 +79,7 @@ test.describe.serial("drafts", () => {
     await page.setViewportSize({ width: 380, height: 800 });
     await addScoredJob("draft-1", "SAP Draft Lead", "COMPANY_SITE", true);
 
-    await page.goto("/");
+    await page.goto("/matches");
     await page.getByRole("button", { name: /Review draft for SAP Draft Lead/ }).click();
 
     const drawer = page.getByRole("dialog");
@@ -107,7 +107,7 @@ test.describe.serial("drafts", () => {
     await addScoredJob("card-2", "SAP Card None", "COMPANY_SITE", false);
     await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@card.example.com', description = 'Email your resume to hr@card.example.com today.' WHERE id = 'card-1'`));
 
-    await page.goto("/");
+    await page.goto("/matches");
     const withEmail = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "SAP Card Email" }) });
     const email = withEmail.getByRole("link", { name: "hr@card.example.com" });
     await expect(email).toHaveAttribute("href", /^mailto:hr@card\.example\.com\?subject=Application/);
@@ -140,7 +140,7 @@ test.describe.serial("drafts", () => {
   test("marking as applied records it once and locks the draft", async ({ page, context }) => {
     await addScoredJob("draft-2", "SAP Applied Lead", "COMPANY_SITE", true);
 
-    await page.goto("/");
+    await page.goto("/matches");
     await page.getByRole("button", { name: /Review draft for SAP Applied Lead/ }).click();
     const drawer = page.getByRole("dialog");
     await drawer.getByRole("button", { name: "Mark as applied" }).click();
@@ -157,7 +157,7 @@ test.describe.serial("drafts", () => {
 
   test("a LinkedIn draft only offers a link and copy buttons", async ({ page }) => {
     await addScoredJob("draft-3", "SAP LinkedIn Lead", "LINKEDIN_EASY_APPLY", true);
-    await page.goto("/");
+    await page.goto("/matches");
     await page.getByRole("button", { name: /Review draft for SAP LinkedIn Lead/ }).click();
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByText("never acts on LinkedIn for you")).toBeVisible();
@@ -172,7 +172,7 @@ test.describe.serial("drafts", () => {
     await addScoredJob("done-1", "SAP Queue One", "COMPANY_SITE", true);
     await addScoredJob("done-2", "SAP Queue Two", "COMPANY_SITE", true);
 
-    await page.goto("/");
+    await page.goto("/matches");
     const sent: string[] = [];
     await page.route("**/api/applications", async (route) => {
       const [jobId] = route.request().postDataJSON().jobIds;
@@ -196,7 +196,7 @@ test.describe.serial("drafts", () => {
   });
 
   test("without an API key, preparing a draft explains what's missing and creates nothing", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/matches");
     await page.getByRole("button", { name: /Prepare cover letter for SAP Pick One/ }).click();
     await expect(page.getByRole("main").getByRole("status").first()).toContainText("ANTHROPIC_API_KEY");
     await expect(page.getByRole("dialog")).toBeHidden();
@@ -206,7 +206,7 @@ test.describe.serial("drafts", () => {
     await addScoredJob("mail-1", "SAP Mail Lead", "EMAIL", true);
     await withDb((client) => client.query(`UPDATE jobmatch."Job" SET "applyEmail" = 'hr@mail.example.com', description = 'Email your CV to hr@mail.example.com' WHERE id = 'mail-1'`));
 
-    await page.goto("/");
+    await page.goto("/matches");
     await expect(page.getByRole("button", { name: /Approve all/ })).toBeHidden();
     await page.getByRole("button", { name: /Review draft for SAP Mail Lead/ }).click();
     const drawer = page.getByRole("dialog");
@@ -225,7 +225,7 @@ test.describe.serial("drafts", () => {
   });
 
   test("a job can be saved or dismissed", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/matches");
     await page.getByRole("button", { name: /Save for later SAP Pick Two/ }).click();
     await expect(page.getByRole("button", { name: /Unsave SAP Pick Two/ })).toBeVisible();
 
@@ -242,7 +242,7 @@ test.describe.serial("drafts", () => {
     await page.getByRole("button", { name: "Save answers" }).click();
     await expect(page.getByText("Answers saved.")).toBeVisible();
 
-    await page.goto("/");
+    await page.goto("/matches");
     await page.getByRole("button", { name: /Review draft for SAP Queue One/ }).click();
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByText("1 month")).toBeVisible();

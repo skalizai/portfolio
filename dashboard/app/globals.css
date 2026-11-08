@@ -1,31 +1,38 @@
 @import "tailwindcss";
 
-/* Colour tokens come from the public portfolio. Dark is the default. */
+/*
+ * "Evergreen": deep green with emerald and amber accents, chosen to look distinct from the public
+ * portfolio's violet and cyan. Dark is the default.
+ */
 :root {
-  --bg: #0c0c14;
-  --surface: #14141f;
-  --surface-2: #1c1c2a;
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.28);
-  --txt: #edeef3;
-  --dim: #a4a7b8;
-  --violet: #7c6cf6;
-  --cyan: #39c6f2;
-  --accent-text: #a99ffa;
-  --on-accent: #08080d;
-  --gradient: linear-gradient(90deg, var(--violet), var(--cyan));
+  --bg: #07110e;
+  --surface: #0d1a16;
+  --surface-2: #14261f;
+  --line: rgba(220, 255, 240, 0.09);
+  --line-strong: rgba(220, 255, 240, 0.3);
+  --txt: #e9f3ef;
+  --dim: #9db3ab;
+  --brand: #34d399;
+  --brand-2: #fbbf24;
+  --accent-text: #5eead4;
+  --on-accent: #04110c;
+  --gradient: linear-gradient(90deg, var(--brand), var(--brand-2));
+  --glow-1: rgba(52, 211, 153, 0.16);
+  --glow-2: rgba(251, 191, 36, 0.1);
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #f7f7fb;
+  --bg: #f4f8f5;
   --surface: #ffffff;
-  --surface-2: #eeeef5;
-  --line: rgba(12, 12, 20, 0.12);
-  --line-strong: rgba(12, 12, 20, 0.45);
-  --txt: #14141f;
-  --dim: #55586a;
-  --accent-text: #5444d0;
+  --surface-2: #e6f0eb;
+  --line: rgba(7, 17, 14, 0.12);
+  --line-strong: rgba(7, 17, 14, 0.45);
+  --txt: #0a1914;
+  --dim: #4a5e57;
+  --accent-text: #047857;
+  --glow-1: rgba(16, 185, 129, 0.14);
+  --glow-2: rgba(245, 158, 11, 0.12);
   color-scheme: light;
 }
 
@@ -37,11 +44,11 @@
   --color-line-strong: var(--line-strong);
   --color-txt: var(--txt);
   --color-dim: var(--dim);
-  --color-violet: var(--violet);
-  --color-cyan: var(--cyan);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
   --color-accent-text: var(--accent-text);
   --color-on-accent: var(--on-accent);
-  --font-display: var(--font-space-grotesk), sans-serif;
+  --font-display: var(--font-sora), sans-serif;
   --font-body: var(--font-inter), sans-serif;
   --font-mono: var(--font-jetbrains-mono), monospace;
 }
@@ -61,7 +68,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--cyan);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 
@@ -72,4 +79,18 @@
 
 @utility bg-gradient-accent {
   background-image: var(--gradient);
+}
+
+/* Text filled with the accent gradient, for the landing page headline. */
+@utility text-gradient-accent {
+  background-image: var(--gradient);
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft emerald and amber light behind the landing page. */
+@utility bg-glow {
+  background-image:
+    radial-gradient(60rem 30rem at 85% -10%, var(--glow-1), transparent 60%),
+    radial-gradient(40rem 24rem at -10% 110%, var(--glow-2), transparent 60%);
 }

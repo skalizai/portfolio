@@ -3,7 +3,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET, TEST_CRON_SECRET } from "./constants";
 
-const PAGES = ["/", "/applications", "/profile", "/settings", "/logs"];
+const PAGES = ["/", "/matches", "/applications", "/profile", "/settings", "/logs"];
 const NARROW = { width: 380, height: 800 };
 const COOKIE = "authjs.session-token";
 
@@ -102,9 +102,9 @@ test.describe("signed in as the owner", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test("uses the portfolio background and display font by default", async ({ page }) => {
+  test("uses its own evergreen theme and display font by default", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(12, 12, 20)");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-family", /Space.?Grotesk/i);
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(7, 17, 14)");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-family", /Sora/i);
   });
 });

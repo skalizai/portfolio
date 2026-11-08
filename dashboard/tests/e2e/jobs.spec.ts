@@ -67,7 +67,7 @@ test.describe.serial("search settings and jobs", () => {
     await addJob("job-3", "SAP FICO Consultant", "Initech", "COMPANY_SITE", 50);
     await addJob("job-4", "SAP Basis Lead", "Umbrella", "COMPANY_SITE", null);
 
-    await page.goto("/");
+    await page.goto("/matches");
     await expect(page.getByRole("heading", { name: "SAP CPI Architect" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "SAP BTP Lead" })).toBeVisible();
     await expect(page.getByText("Reason for this score.").first()).toBeVisible();
@@ -94,7 +94,7 @@ test.describe.serial("search settings and jobs", () => {
   });
 
   test("refresh reports the outcome", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/matches");
     await page.route("**/api/jobs/fetch", (route) =>
       route.fulfill({
         json: {

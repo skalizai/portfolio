@@ -103,7 +103,7 @@ test.describe.serial("applications board", () => {
 
   test("you can add, correct and remove an email on a job", async ({ page, context }) => {
     await addJobOnly("mail-add", "SAP Add Email");
-    await page.goto("/");
+    await page.goto("/matches");
     const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "SAP Add Email" }) });
     await expect(card.getByText("No email to apply to in this listing")).toBeVisible();
 
@@ -127,7 +127,7 @@ test.describe.serial("applications board", () => {
     await addJobOnly("tick-plain", "SAP Tick Plain");
     await seed("tick-draft", "SAP Tick Draft", false);
 
-    await page.goto("/");
+    await page.goto("/matches");
     const matches = page.locator("section[aria-label=Jobs] > ul").first();
     await expect(matches.getByRole("heading", { name: "SAP Tick Plain" })).toBeVisible();
 
@@ -149,7 +149,7 @@ test.describe.serial("applications board", () => {
     await context.request.post("/api/jobs/tick-draft/applied", { data: { applied: false } });
     expect(await (await context.request.get("/api/applications/app-tick-draft")).json()).toMatchObject({ status: "DRAFT", submittedAt: null, coverLetter: "Dear Hiring Manager," });
 
-    await page.goto("/");
+    await page.goto("/matches");
     await expect(page.locator("section[aria-label=Jobs] > ul").first().getByRole("heading", { name: "SAP Tick Plain" })).toBeVisible();
 
     expect((await context.request.post("/api/jobs/nope/applied", { data: { applied: true } })).status()).toBe(404);
@@ -176,7 +176,7 @@ test.describe.serial("applications board", () => {
     await expect(section.getByRole("status")).toContainText("Singapore was also added to your search locations.");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
-    await page.goto("/");
+    await page.goto("/matches");
     await expect(page.getByRole("heading", { name: "SAP Offered Lead" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "SAP Quiet Lead" })).toHaveCount(0);
 
