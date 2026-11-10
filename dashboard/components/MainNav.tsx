@@ -44,6 +44,15 @@ export function MainNav() {
             Home
           </Link>
         </li>
+        <li>
+          <Link
+            href="/investments"
+            aria-current={pathname.startsWith("/investments") ? "page" : undefined}
+            className={cn(item, pathname.startsWith("/investments") ? "bg-surface-2 text-txt" : "text-dim hover:text-txt")}
+          >
+            Investments
+          </Link>
+        </li>
         <li ref={wrapper} className="relative">
           <button
             type="button"

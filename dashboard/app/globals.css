@@ -19,6 +19,8 @@
   --gradient: linear-gradient(90deg, var(--brand), var(--brand-2));
   --glow-1: rgba(52, 211, 153, 0.16);
   --glow-2: rgba(251, 191, 36, 0.1);
+  --gain: #4ade80;
+  --loss: #fca5a5;
   color-scheme: dark;
 }
 
@@ -33,6 +35,8 @@
   --accent-text: #047857;
   --glow-1: rgba(16, 185, 129, 0.14);
   --glow-2: rgba(245, 158, 11, 0.12);
+  --gain: #15803d;
+  --loss: #b91c1c;
   color-scheme: light;
 }
 
@@ -48,6 +52,8 @@
   --color-brand-2: var(--brand-2);
   --color-accent-text: var(--accent-text);
   --color-on-accent: var(--on-accent);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
   --font-display: var(--font-sora), sans-serif;
   --font-body: var(--font-inter), sans-serif;
   --font-mono: var(--font-jetbrains-mono), monospace;

@@ -3,7 +3,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET, TEST_CRON_SECRET, TEST_PASSWORD } from "./constants";
 
-const PAGES = ["/", "/matches", "/applications", "/profile", "/settings", "/logs"];
+const PAGES = ["/", "/matches", "/applications", "/profile", "/settings", "/logs", "/investments", "/investments/transactions", "/investments/accounts"];
 const NARROW = { width: 380, height: 800 };
 const COOKIE = "authjs.session-token";
 

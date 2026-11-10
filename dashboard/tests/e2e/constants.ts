@@ -11,5 +11,5 @@ export function testPasswordHash(): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { pbkdf2Sync } = require("node:crypto") as typeof import("node:crypto");
   const salt = Buffer.from("e2e-fixed-salt-16");
-  return `pbkdf2$1000$${salt.toString("base64")}$${pbkdf2Sync(TEST_PASSWORD, salt, 1000, 32, "sha256").toString("base64")}`;
+  return `pbkdf2:1000:${salt.toString("base64")}:${pbkdf2Sync(TEST_PASSWORD, salt, 1000, 32, "sha256").toString("base64")}`;
 }

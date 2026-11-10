@@ -1,6 +1,7 @@
 /**
  * Password hashing with PBKDF2-SHA-256 from Web Crypto, which works in every runtime without an
- * extra package. Stored as "pbkdf2$<iterations>$<salt>$<hash>", with base64 salt and hash.
+ * extra package. Stored as "pbkdf2:<iterations>:<salt>:<hash>", with base64 salt and hash. The
+ * separator is a colon because a dollar sign in .env.local is read as a reference to another setting.
  */
 
 const ITERATIONS = 600_000;
@@ -17,12 +18,13 @@ async function derive(password: string, salt: Uint8Array, iterations: number): P
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  return `pbkdf2$${ITERATIONS}$${toBase64(salt)}$${toBase64(await derive(password, salt, ITERATIONS))}`;
+  return `pbkdf2:${ITERATIONS}:${toBase64(salt)}:${toBase64(await derive(password, salt, ITERATIONS))}`;
 }
 
 /** Fails closed on a missing or malformed hash, and compares without stopping at the first difference. */
 export async function verifyPassword(password: string, stored: string | null | undefined): Promise<boolean> {
-  const [scheme, iterations, salt, hash] = stored?.trim().split("$") ?? [];
+  // Hashes made before the switch to colons used dollar signs, so both are read.
+  const [scheme, iterations, salt, hash] = stored?.trim().split(/[:$]/) ?? [];
   if (scheme !== "pbkdf2" || !iterations || !salt || !hash || !password) return false;
   const expected = fromBase64(hash);
   const actual = await derive(password, fromBase64(salt), Number(iterations));

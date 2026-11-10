@@ -4,10 +4,11 @@ generator client {
 }
 
 // The connection URL lives in prisma.config.ts (migrations) and lib/db.ts (runtime).
-// This database is shared with stockradar, whose tables are in "public". Everything here stays in "jobmatch".
+// This database is shared with stockradar, whose tables are in "public". The job search stays
+// in "jobmatch" and investments in "finance".
 datasource db {
   provider = "postgresql"
-  schemas  = ["jobmatch"]
+  schemas  = ["jobmatch", "finance"]
 }
 
 enum ApplyChannel {
@@ -59,14 +60,14 @@ enum JobState {
 }
 
 model Profile {
-  id        String   @id @default(cuid())
-  json      Json
-  cvFileUrl String?
+  id           String   @id @default(cuid())
+  json         Json
+  cvFileUrl    String?
   // Plain text of the latest CV. Generated applications may only use facts found here or in json.
-  cvText    String?
+  cvText       String?
   // The CV in sections, so that tailoring can only reorder what's already there.
   cvStructured Json?
-  updatedAt DateTime @updatedAt
+  updatedAt    DateTime @updatedAt
 
   @@schema("jobmatch")
 }
@@ -105,7 +106,6 @@ model Job {
   @@unique([source, sourceJobId])
   @@index([company, postedAt])
   @@index([state, postedAt])
-
   @@schema("jobmatch")
 }
 
@@ -131,7 +131,6 @@ model MatchScore {
 
   @@unique([jobId, profileUpdatedAt, modelVersion])
   @@index([score])
-
   @@schema("jobmatch")
 }
 
@@ -163,7 +162,6 @@ model Application {
 
   @@index([status])
   @@index([sendAt])
-
   @@schema("jobmatch")
 }
 
@@ -196,6 +194,129 @@ model AuditLog {
   at            DateTime     @default(now())
 
   @@index([action, at])
-
   @@schema("jobmatch")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Investments. Tracking only: nothing here can trade or move money, and no broker or bank
+// usernames, passwords or account numbers are ever stored. Money and quantities are Decimal.
+// ---------------------------------------------------------------------------------------------
+
+enum AccountType {
+  BROKERAGE
+  BANK
+  OTHER
+
+  @@schema("finance")
+}
+
+enum AssetClass {
+  STOCK
+  ETF
+  OTHER
+
+  @@schema("finance")
+}
+
+enum PriceSource {
+  FINNHUB
+  MANUAL
+
+  @@schema("finance")
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  INTEREST
+  DEPOSIT
+  WITHDRAWAL
+  FEE
+  SPLIT
+
+  @@schema("finance")
+}
+
+model Account {
+  id           String        @id @default(cuid())
+  name         String
+  type         AccountType   @default(BROKERAGE)
+  institution  String
+  currency     String        @default("USD")
+  isActive     Boolean       @default(true)
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+
+  @@schema("finance")
+}
+
+model Instrument {
+  id           String        @id @default(cuid())
+  symbol       String        @unique
+  name         String
+  assetClass   AssetClass    @default(STOCK)
+  exchange     String?
+  currency     String        @default("USD")
+  priceSource  PriceSource   @default(MANUAL)
+  sector       String?
+  region       String?
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  prices       PriceQuote[]
+
+  @@schema("finance")
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  accountId     String
+  account       Account         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  instrumentId  String?
+  instrument    Instrument?     @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  type          TransactionType
+  date          DateTime        @db.Date
+  // Shares for BUY and SELL, or the ratio for SPLIT, such as 4 for a 4-for-1 split.
+  quantity      Decimal?        @db.Decimal(24, 8)
+  price         Decimal?        @db.Decimal(24, 8)
+  // Cash amount in the transaction currency, always positive. The type gives its direction.
+  amount        Decimal         @db.Decimal(24, 8)
+  fees          Decimal         @default(0) @db.Decimal(24, 8)
+  currency      String
+  // AED per one unit of the currency on the transaction date.
+  fxRateToBase  Decimal         @db.Decimal(24, 10)
+  notes         String?
+  importBatchId String?
+  createdAt     DateTime        @default(now())
+
+  @@index([accountId, date])
+  @@index([instrumentId, date])
+  @@schema("finance")
+}
+
+model PriceQuote {
+  id           String      @id @default(cuid())
+  instrumentId String
+  instrument   Instrument  @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  price        Decimal     @db.Decimal(24, 8)
+  currency     String
+  asOf         DateTime
+  source       PriceSource
+  createdAt    DateTime    @default(now())
+
+  @@index([instrumentId, asOf])
+  @@schema("finance")
+}
+
+model FxRate {
+  id    String   @id @default(cuid())
+  base  String
+  quote String
+  rate  Decimal  @db.Decimal(24, 10)
+  asOf  DateTime @db.Date
+
+  @@unique([base, quote, asOf])
+  @@schema("finance")
 }
