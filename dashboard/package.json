@@ -16,6 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "jobs:fetch": "tsx scripts/fetch-jobs.ts",
     "jobs:score": "tsx scripts/score-jobs.ts",
+    "auth:set-password": "tsx scripts/set-password.ts",
     "scoring:check": "tsx scripts/check-scoring.ts"
   },
   "dependencies": {

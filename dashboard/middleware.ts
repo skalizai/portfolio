@@ -1,6 +1,10 @@
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { decideAccess } from "@/lib/access";
-import { auth } from "@/lib/auth";
+import { authConfig } from "@/lib/auth.config";
+
+// Only reads the session, so it uses the light config without the database or password check.
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const decision = decideAccess({

@@ -1,13 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
-import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET, TEST_CRON_SECRET } from "./constants";
+import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET, TEST_CRON_SECRET, TEST_PASSWORD } from "./constants";
 
 const PAGES = ["/", "/matches", "/applications", "/profile", "/settings", "/logs"];
 const NARROW = { width: 380, height: 800 };
 const COOKIE = "authjs.session-token";
 
-/** Signs in by writing a real session cookie, since e2e runs can't complete GitHub's OAuth flow. */
+/** Signs in by writing a real session cookie, which keeps most tests quick. The login form has its own tests. */
 async function signInAs(context: BrowserContext, email: string) {
   const value = await encode({ token: { email, name: "Test" }, secret: TEST_AUTH_SECRET, salt: COOKIE });
   await context.addCookies([{ name: COOKIE, value, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
@@ -58,14 +58,49 @@ test.describe("signed out", () => {
   test("the login page is accessible and fits 380 px", async ({ page }) => {
     await page.setViewportSize(NARROW);
     await page.goto("/login");
-    await expect(page.getByRole("button", { name: "Sign in with GitHub" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
     await expectAccessible(page);
     await expectNoHorizontalScroll(page);
   });
 
   test("a rejected login explains why", async ({ page }) => {
-    await page.goto("/login?error=AccessDenied");
-    await expect(page.getByRole("main").getByRole("alert")).toContainText("isn't allowed");
+    await page.goto("/login?error=CredentialsSignin");
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("don't match");
+  });
+});
+
+test.describe.serial("signing in with email and password", () => {
+  async function submit(page: Page, email: string, password: string) {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill(password);
+    await page.getByRole("button", { name: "Sign in" }).click();
+  }
+
+  test("your email and password sign you in, and sign out ends it", async ({ page }) => {
+    await submit(page, TEST_ALLOWED_EMAIL.toUpperCase(), TEST_PASSWORD);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome back");
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.goto("/matches");
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test("a wrong password or another email is refused", async ({ page }) => {
+    await submit(page, TEST_ALLOWED_EMAIL, "not-the-password");
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("don't match");
+    await submit(page, "someone@example.com", TEST_PASSWORD);
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("don't match");
+  });
+
+  test("after five wrong attempts even the right password waits", async ({ page }) => {
+    // Two failures above, three more here.
+    for (let i = 0; i < 3; i++) await submit(page, TEST_ALLOWED_EMAIL, `wrong-${i}`);
+    await submit(page, TEST_ALLOWED_EMAIL, TEST_PASSWORD);
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("Too many wrong attempts");
+    await expect(page).toHaveURL(/\/login/);
   });
 });
 
