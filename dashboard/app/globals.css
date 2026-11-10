@@ -21,6 +21,11 @@
   --glow-2: rgba(251, 191, 36, 0.1);
   --gain: #4ade80;
   --loss: #fca5a5;
+  /* Chart series, validated for colour-blind separation on this surface. Three at most, then Other. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-other: #5b6b66;
   color-scheme: dark;
 }
 
@@ -37,6 +42,10 @@
   --glow-2: rgba(245, 158, 11, 0.12);
   --gain: #15803d;
   --loss: #b91c1c;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-other: #9aa8a3;
   color-scheme: light;
 }
 
@@ -54,6 +63,10 @@
   --color-on-accent: var(--on-accent);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-other: var(--series-other);
   --font-display: var(--font-sora), sans-serif;
   --font-body: var(--font-inter), sans-serif;
   --font-mono: var(--font-jetbrains-mono), monospace;

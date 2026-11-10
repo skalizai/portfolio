@@ -1,19 +1,13 @@
 import Link from "next/link";
+import { InvestmentDashboard } from "@/components/InvestmentDashboard";
 import { PriceForm } from "@/components/InvestmentForms";
+import { buildDashboard } from "@/lib/investments/dashboard";
 import { aed, plain, signedAed, signedPct, tone } from "@/lib/investments/format";
 import { D, type Dec } from "@/lib/investments/holdings";
+import { samplePortfolio } from "@/lib/investments/sample";
 import { getPortfolio } from "@/lib/investments/service";
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Dubai" });
-
-function Kpi({ label, value, className = "" }: { label: string; value: string; className?: string }) {
-  return (
-    <div className="flex flex-col rounded-[1.5rem] border border-line bg-surface p-4">
-      <dt className="text-sm text-dim">{label}</dt>
-      <dd className={`order-first font-display text-2xl font-semibold break-words ${className}`}>{value}</dd>
-    </div>
-  );
-}
 
 /** A labelled bar per group, with the share written out so it doesn't rely on the bar alone. */
 function Allocation({ title, rows }: { title: string; rows: { label: string; value: Dec }[] }) {
@@ -54,8 +48,13 @@ function Allocation({ title, rows }: { title: string; rows: { label: string; val
   );
 }
 
-export default async function InvestmentsPage() {
-  const { accounts, instruments, transactions, portfolio, missingRates } = await getPortfolio();
+export default async function InvestmentsPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+  const isSample = (await searchParams).preview === "sample";
+  // The sample preview is built in memory and never saved; the page labels it as made up.
+  const source = isSample ? { ...samplePortfolio(), missingRates: [] as string[] } : await getPortfolio();
+  const { accounts, instruments, portfolio, missingRates } = source;
+  const transactions = "txs" in source ? source.txs : source.transactions;
+  const dashboard = buildDashboard({ isSample, now: new Date(), accounts, instruments, transactions, portfolio });
   const { totals, positions, cash } = portfolio;
   const instrument = new Map(instruments.map((i) => [i.id, i]));
   const account = new Map(accounts.map((a) => [a.id, a]));
@@ -74,9 +73,9 @@ export default async function InvestmentsPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-semibold">Investments</h1>
       {!transactions.length ? (
-        <div className="mt-6 rounded-[1.5rem] border border-line bg-surface p-6">
+        <div className="rounded-[1.5rem] border border-line bg-surface p-6">
+          <h1 className="text-3xl font-semibold">Investments</h1>
           <h2 className="text-lg font-semibold">Start tracking your portfolio</h2>
           <ol className="mt-3 list-decimal space-y-1 pl-5 text-dim">
             <li>
@@ -87,6 +86,12 @@ export default async function InvestmentsPage() {
             </li>
             <li>Your holdings, profit or loss and allocation then appear here, in AED.</li>
           </ol>
+          <p className="mt-4">
+            <Link href="/investments?preview=sample" className="text-accent-text underline">
+              Preview with sample data
+            </Link>{" "}
+            <span className="text-dim">to see how the overview looks. Nothing is saved.</span>
+          </p>
         </div>
       ) : (
         <>
@@ -95,14 +100,9 @@ export default async function InvestmentsPage() {
               Couldn&apos;t find today&apos;s rate for {missingRates.join(", ")}, so those amounts show as zero in AED.
             </p>
           )}
-          <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
-            <Kpi label="Portfolio value (holdings and cash)" value={aed(totals.totalBase)} />
-            <Kpi label="Invested in current holdings" value={aed(totals.costBasisBase)} />
-            <Kpi label="Unrealised profit or loss" value={signedAed(totals.unrealisedBase)} className={tone(totals.unrealisedBase)} />
-            <Kpi label="Realised profit or loss" value={signedAed(totals.realisedBase)} className={tone(totals.realisedBase)} />
-            <Kpi label="Dividends and interest, after tax" value={aed(totals.incomeBase)} />
-            <Kpi label="Cash" value={aed(totals.cashBase)} />
-          </dl>
+          <div className="mt-2">
+            <InvestmentDashboard data={dashboard} />
+          </div>
 
           <section aria-labelledby="holdings" className="mt-6 rounded-[1.5rem] border border-line bg-surface p-5">
             <h2 id="holdings" className="text-lg font-semibold">
@@ -122,7 +122,7 @@ export default async function InvestmentsPage() {
                     <th scope="col" className="py-2 pr-3 text-right font-medium">Value</th>
                     <th scope="col" className="py-2 pr-3 text-right font-medium">Profit or loss</th>
                     <th scope="col" className="py-2 pr-3 text-right font-medium">Weight</th>
-                    <th scope="col" className="py-2 font-medium">Update price</th>
+                    {!isSample && <th scope="col" className="py-2 font-medium">Update price</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -154,9 +154,11 @@ export default async function InvestmentsPage() {
                           <span className="block">{signedPct(p.unrealisedPct)}</span>
                         </td>
                         <td className="py-3 pr-3 text-right font-mono">{weight ? `${weight.toFixed(1)}%` : "–"}</td>
-                        <td className="py-3">
-                          <PriceForm instrumentId={i.id} symbol={i.symbol} currency={i.currency} />
-                        </td>
+                        {!isSample && (
+                          <td className="py-3">
+                            <PriceForm instrumentId={i.id} symbol={i.symbol} currency={i.currency} />
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -171,7 +173,7 @@ export default async function InvestmentsPage() {
                         {plain(c.balance)} {c.currency}
                       </td>
                       <td className="py-3 pr-3 text-right font-mono">{aed(c.balanceBase)}</td>
-                      <td colSpan={3} />
+                      <td colSpan={isSample ? 2 : 3} />
                     </tr>
                   ))}
                 </tbody>

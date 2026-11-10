@@ -154,20 +154,21 @@ export async function getPortfolio() {
   }
   const missingRates = currencies.filter((code) => !rates.has(code));
 
+  const txs = transactions.map((t) => ({
+    ...t,
+    quantity: t.quantity ? new D(t.quantity) : null,
+    price: t.price ? new D(t.price) : null,
+    amount: new D(t.amount),
+    fees: new D(t.fees),
+    fxRateToBase: new D(t.fxRateToBase),
+  }));
   const portfolio = computePortfolio(
-    transactions.map((t) => ({
-      ...t,
-      quantity: t.quantity ? new D(t.quantity) : null,
-      price: t.price ? new D(t.price) : null,
-      amount: new D(t.amount),
-      fees: new D(t.fees),
-      fxRateToBase: new D(t.fxRateToBase),
-    })),
+    txs,
     latest,
     (code) => rates.get(code) ?? new D(0),
   );
 
-  return { accounts, instruments, transactions, portfolio, missingRates };
+  return { accounts, instruments, transactions, txs, portfolio, missingRates };
 }
 
 export type PortfolioView = Awaited<ReturnType<typeof getPortfolio>>;
