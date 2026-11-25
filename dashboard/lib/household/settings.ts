@@ -21,7 +21,8 @@ export const SettingsInputSchema = z.object({
 
 /** The single settings row, created with defaults if it's somehow missing. */
 export async function getHouseholdSettings() {
-  return db().householdSettings.upsert({ where: { id: "default" }, create: { id: "default" }, update: {} });
+  // A plain read; the row is only written in the rare case it's missing.
+  return (await db().householdSettings.findUnique({ where: { id: "default" } })) ?? db().householdSettings.create({ data: { id: "default" } });
 }
 
 export async function saveHouseholdSettings(input: z.infer<typeof SettingsInputSchema>) {
