@@ -48,9 +48,10 @@ export function addMonths(month: string, count: number): string {
 export const isMonth = (value: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 
 const aedFormat = new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pkrFormat = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+// Whole rupees are shown without decimals, and paisa only when there are any.
+const pkrFormat = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
 export const formatAed = (value: Num) => aedFormat.format(Number(new D(value).toFixed(2)));
-export const formatPkr = (value: Num) => pkrFormat.format(Number(new D(value).toFixed(0)));
+export const formatPkr = (value: Num) => pkrFormat.format(Number(new D(value).toFixed(2)));
 
 /** Shows only the last 4 characters of an ID or IBAN in lists, such as "•••• 4521". */
 export function mask(value: string | null | undefined): string {

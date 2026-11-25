@@ -129,4 +129,94 @@ test.describe.serial("household and family", () => {
     expect(bad.status()).toBe(400);
     expect((await bad.json()).error).toContain("above zero");
   });
+
+  test("an advance is recorded and a month skipped, then payroll is run, approved, paid and reopened", async ({ page, context }) => {
+    const month = new Date().toISOString().slice(0, 7);
+    const created = await context.request.post("/api/household/employees", {
+      data: { fullName: "Aslam Khan", role: "Driver", joiningDate: "2024-01-01", basicSalary: "36000", allowances: [{ name: "Fuel", amount: "4000" }], iban: "" },
+    });
+    expect(created.status()).toBe(201);
+
+    // An advance of 15,000 repaid at 5,000 a month from this month.
+    await page.setViewportSize({ width: 380, height: 900 });
+    await page.goto("/household/advances");
+    const form = page.getByRole("region", { name: "Record an advance" });
+    await form.getByLabel("Amount (PKR)").fill("15000");
+    await form.getByLabel("Reason").fill("Medical");
+    await form.getByLabel("Fixed monthly installment").check();
+    await form.getByLabel("Repaid each month (PKR)").fill("5000");
+    await form.getByLabel(/First month/).fill(month);
+    await form.getByRole("button", { name: "Record advance" }).click();
+    await expect(form.getByRole("status")).toHaveText("Advance recorded.");
+    const advance = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: /Aslam Khan · Rs 15,000/ }) });
+    await expect(advance).toContainText("Outstanding");
+    await expect(advance.getByRole("button", { name: /^Change/ })).toHaveCount(3);
+    await noA11yIssues(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+
+    // A custom schedule that doesn't add up is refused.
+    await form.getByLabel("Amount (PKR)").fill("10000");
+    await form.getByLabel("Custom schedule").check();
+    await form.getByLabel("Amount for month 1 in PKR").fill("4000");
+    await form.getByRole("button", { name: "Record advance" }).click();
+    await expect(form.getByRole("status")).toContainText("adds up to 4000.00");
+
+    // Run payroll: the first installment is deducted automatically.
+    await page.goto("/household/payroll");
+    await page.getByLabel("Month").fill(month);
+    await page.getByRole("button", { name: "Run payroll" }).click();
+    await expect(page).toHaveURL(new RegExp(`/household/payroll/${month}$`));
+    const line = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Aslam Khan" }) });
+    await expect(line).toContainText("Advance repayment (Medical)");
+    await expect(line).toContainText("Rs 35,000");
+
+    // A second run for the same month is refused.
+    expect((await context.request.post("/api/household/payroll", { data: { month } })).status()).toBe(409);
+
+    // Eid gift and two unpaid days: 36,000 + 4,000 + 5,000 - 2,400 - 5,000 = 37,600.
+    await line.getByRole("button", { name: /Add earning/ }).click();
+    await line.getByLabel(/Earning 1 type/).selectOption("EID_GIFT");
+    await line.getByLabel(/Earning 1 amount/).fill("5000");
+    await line.getByLabel(/Unpaid leave days/).fill("2");
+    await line.getByRole("button", { name: /^Save/ }).click();
+    await expect(line.getByRole("status")).toHaveText("Saved.");
+    await expect(line).toContainText("Unpaid leave (2 days)");
+    await expect(line).toContainText("Rs 37,600");
+    await noA11yIssues(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+
+    // Approving locks it.
+    await page.getByRole("button", { name: "Approve payroll" }).click();
+    await expect(page.getByText("Locked", { exact: true })).toBeVisible();
+    await expect(line.getByRole("button", { name: /^Save/ })).toHaveCount(0);
+
+    // Paying records the advance repayment and creates the payslip.
+    await page.getByLabel("Paid by").selectOption("Bank transfer");
+    await page.getByLabel(/Reference/).fill("HBL-7781");
+    await page.getByRole("button", { name: "Mark as paid" }).click();
+    await expect(page.getByText(/Paid \d+ \w+ \d{4} by bank transfer · ref HBL-7781/)).toBeVisible();
+
+    await page.goto("/household/advances");
+    await expect(page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: /Aslam Khan · Rs 15,000/ }) })).toContainText("Paid");
+
+    const xlsx = await context.request.get(`/api/household/payroll/export?month=${month}`);
+    expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
+
+    // Reopening needs a reason, and unlocks the month.
+    await page.goto(`/household/payroll/${month}`);
+    page.once("dialog", (dialog) => dialog.accept("Forgot overtime"));
+    await page.getByRole("button", { name: "Reopen to make changes" }).click();
+    await expect(page.getByRole("button", { name: "Approve payroll" })).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Aslam Khan" }) }).getByRole("button", { name: /^Save/ })).toBeVisible();
+
+    // Skipping the next month's repayment moves it to a new month at the end.
+    await page.goto("/household/advances");
+    const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: /Aslam Khan · Rs 15,000/ }) });
+    await card.getByRole("button", { name: /^Change/ }).nth(1).click();
+    await card.getByLabel("Amount (0 skips)").fill("0");
+    await card.getByLabel("Note").fill("Eid month");
+    await card.getByRole("button", { name: /^Save/ }).click();
+    await expect(card).toContainText("Skipped · Eid month");
+    await expect(card.getByRole("button", { name: /^Change/ })).toHaveCount(3);
+  });
 });
