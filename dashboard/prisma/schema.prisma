@@ -5,10 +5,10 @@ generator client {
 
 // The connection URL lives in prisma.config.ts (migrations) and lib/db.ts (runtime).
 // This database is shared with stockradar, whose tables are in "public". The job search stays
-// in "jobmatch" and investments in "finance".
+// in "jobmatch", investments in "finance" and Household & Family in "household".
 datasource db {
   provider = "postgresql"
-  schemas  = ["jobmatch", "finance"]
+  schemas  = ["jobmatch", "finance", "household"]
 }
 
 enum ApplyChannel {
@@ -319,4 +319,392 @@ model FxRate {
 
   @@unique([base, quote, asOf])
   @@schema("finance")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Household & Family: household staff, advances, payroll, payslips, remittances home and other
+// expenses. Money is Decimal, never a float. Rows marked isDemo come from "Load demo data" and
+// are removed by "Clear demo data". Rows with deletedAt are hidden but kept for history.
+// ---------------------------------------------------------------------------------------------
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  LEFT
+
+  @@schema("household")
+}
+
+enum StaffPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  WPS
+  EXCHANGE_HOUSE
+
+  @@schema("household")
+}
+
+enum AdvancePlan {
+  ONE_TIME
+  FIXED_MONTHLY
+  CUSTOM
+
+  @@schema("household")
+}
+
+enum AdvanceStatus {
+  OPEN
+  CLOSED
+
+  @@schema("household")
+}
+
+enum InstallmentStatus {
+  DUE
+  PAID
+  SKIPPED
+
+  @@schema("household")
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+
+  @@schema("household")
+}
+
+enum Relationship {
+  WIFE
+  MOTHER
+  FATHER
+  SIBLING
+  OTHER
+
+  @@schema("household")
+}
+
+enum RemittancePurpose {
+  HOUSEHOLD
+  SCHOOL_FEES
+  MEDICAL
+  CONSTRUCTION
+  SAVINGS
+  OTHER
+
+  @@schema("household")
+}
+
+enum ExpenseStatus {
+  PENDING
+  CONFIRMED
+
+  @@schema("household")
+}
+
+enum DocumentType {
+  CONTRACT
+  PASSPORT
+  EMIRATES_ID
+  VISA
+  INSURANCE
+  OTHER
+
+  @@schema("household")
+}
+
+/// One row only, with id "default".
+model HouseholdSettings {
+  id                  String   @id @default("default")
+  employerName        String   @default("My household")
+  address             String   @default("")
+  logoFileId          String?
+  baseCurrency        String   @default("AED")
+  secondaryCurrency   String   @default("PKR")
+  /// PKR per 1 AED, used to pre-fill a transfer. You enter the actual rate on each transfer.
+  defaultPkrPerAed    Decimal  @default(75) @db.Decimal(18, 6)
+  payrollDay          Int      @default(28)
+  expiryAlertDays     Int      @default(60)
+  /// Days of basic pay per completed year of service, for the estimated gratuity.
+  gratuityDaysPerYear Decimal  @default(14) @db.Decimal(6, 2)
+  updatedAt           DateTime @updatedAt
+
+  @@schema("household")
+}
+
+/// Uploaded files, kept in the database (up to 5 MB each) and only served behind sign-in.
+model StoredFile {
+  id        String   @id @default(cuid())
+  filename  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@schema("household")
+}
+
+model Employee {
+  id               String              @id @default(cuid())
+  fullName         String
+  role             String
+  nationality      String              @default("")
+  photoFileId      String?
+  phone            String              @default("")
+  homeContact      String              @default("")
+  passportNo       String              @default("")
+  passportExpiry   DateTime?           @db.Date
+  emiratesIdNo     String              @default("")
+  emiratesIdExpiry DateTime?           @db.Date
+  visaExpiry       DateTime?           @db.Date
+  contractNo       String              @default("")
+  insuranceExpiry  DateTime?           @db.Date
+  joiningDate      DateTime            @db.Date
+  contractStart    DateTime?           @db.Date
+  contractEnd      DateTime?           @db.Date
+  status           EmployeeStatus      @default(ACTIVE)
+  basicSalary      Decimal             @db.Decimal(18, 2)
+  paymentMethod    StaffPaymentMethod  @default(CASH)
+  bankName         String              @default("")
+  iban             String              @default("")
+  leaveDaysPerYear Int                 @default(30)
+  airTicket        Boolean             @default(false)
+  airTicketAmount  Decimal?            @db.Decimal(18, 2)
+  notes            String              @default("")
+  isDemo           Boolean             @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  allowances       EmployeeAllowance[]
+  documents        EmployeeDocument[]
+  advances         Advance[]
+  payrollLines     PayrollLine[]
+  payslips         Payslip[]
+
+  @@schema("household")
+}
+
+model EmployeeAllowance {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  amount     Decimal  @db.Decimal(18, 2)
+
+  @@schema("household")
+}
+
+model EmployeeDocument {
+  id         String       @id @default(cuid())
+  employeeId String
+  employee   Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       DocumentType
+  fileId     String
+  expiry     DateTime?    @db.Date
+  createdAt  DateTime     @default(now())
+
+  @@schema("household")
+}
+
+model Advance {
+  id           String               @id @default(cuid())
+  employeeId   String
+  employee     Employee             @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  date         DateTime             @db.Date
+  amount       Decimal              @db.Decimal(18, 2)
+  reason       String               @default("")
+  plan         AdvancePlan
+  status       AdvanceStatus        @default(OPEN)
+  isDemo       Boolean              @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  installments AdvanceInstallment[]
+
+  @@schema("household")
+}
+
+model AdvanceInstallment {
+  id            String            @id @default(cuid())
+  advanceId     String
+  advance       Advance           @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  /// "YYYY-MM": the payroll month it's due in.
+  month         String
+  amount        Decimal           @db.Decimal(18, 2)
+  status        InstallmentStatus @default(DUE)
+  note          String            @default("")
+  payrollLineId String?
+  paidAt        DateTime?
+
+  @@index([month, status])
+  @@schema("household")
+}
+
+model PayrollRun {
+  id              String        @id @default(cuid())
+  /// "YYYY-MM". One run per month.
+  month           String        @unique
+  status          PayrollStatus @default(DRAFT)
+  approvedAt      DateTime?
+  paidAt          DateTime?     @db.Date
+  paidMethod      String        @default("")
+  reference       String        @default("")
+  totalGross      Decimal       @default(0) @db.Decimal(18, 2)
+  totalDeductions Decimal       @default(0) @db.Decimal(18, 2)
+  totalNet        Decimal       @default(0) @db.Decimal(18, 2)
+  isDemo          Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lines           PayrollLine[]
+  payslips        Payslip[]
+
+  @@schema("household")
+}
+
+model PayrollLine {
+  id              String     @id @default(cuid())
+  runId           String
+  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  basic           Decimal    @db.Decimal(18, 2)
+  /// [{ name, amount }] copied from the employee when the run was prepared.
+  allowances      Json       @default("[]")
+  /// [{ kind, label, amount }]: overtime, bonus, Eid gift, ticket allowance or other.
+  earnings        Json       @default("[]")
+  /// [{ kind, label, amount, installmentId? }]: advance installment, unpaid leave or other.
+  deductions      Json       @default("[]")
+  unpaidDays      Decimal    @default(0) @db.Decimal(6, 2)
+  gross           Decimal    @db.Decimal(18, 2)
+  totalDeductions Decimal    @db.Decimal(18, 2)
+  net             Decimal    @db.Decimal(18, 2)
+
+  @@unique([runId, employeeId])
+  @@schema("household")
+}
+
+model Payslip {
+  id         String     @id @default(cuid())
+  runId      String
+  run        PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  /// Exactly what the payslip shows, frozen when the run was paid.
+  snapshot   Json
+  language   String     @default("en")
+  createdAt  DateTime   @default(now())
+
+  @@unique([runId, employeeId])
+  @@schema("household")
+}
+
+model Recipient {
+  id               String       @id @default(cuid())
+  name             String
+  relationship     Relationship @default(OTHER)
+  phone            String       @default("")
+  account          String       @default("")
+  wallet           String       @default("")
+  city             String       @default("")
+  notes            String       @default("")
+  monthlyTargetAed Decimal?     @db.Decimal(18, 2)
+  isDemo           Boolean      @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  remittances      Remittance[]
+
+  @@schema("household")
+}
+
+model Remittance {
+  id            String            @id @default(cuid())
+  date          DateTime          @db.Date
+  recipientId   String
+  recipient     Recipient         @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+  amountAed     Decimal           @db.Decimal(18, 2)
+  /// PKR per 1 AED for this transfer.
+  rate          Decimal           @db.Decimal(18, 6)
+  amountPkr     Decimal           @db.Decimal(18, 2)
+  feeAed        Decimal           @default(0) @db.Decimal(18, 2)
+  channel       String            @default("")
+  reference     String            @default("")
+  purpose       RemittancePurpose @default(HOUSEHOLD)
+  receiptFileId String?
+  notes         String            @default("")
+  isDemo        Boolean           @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([date])
+  @@schema("household")
+}
+
+model ExpenseCategory {
+  id               String             @id @default(cuid())
+  name             String             @unique
+  monthlyBudgetAed Decimal?           @db.Decimal(18, 2)
+  sortOrder        Int                @default(0)
+  isActive         Boolean            @default(true)
+  expenses         Expense[]
+  recurring        RecurringExpense[]
+
+  @@schema("household")
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  date          DateTime        @db.Date
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amount        Decimal         @db.Decimal(18, 2)
+  currency      String          @default("AED")
+  /// AED per 1 unit of the currency (1 for AED).
+  rateToAed     Decimal         @default(1) @db.Decimal(18, 8)
+  amountAed     Decimal         @db.Decimal(18, 2)
+  paymentMethod String          @default("")
+  notes         String          @default("")
+  receiptFileId String?
+  status        ExpenseStatus   @default(CONFIRMED)
+  recurringId   String?
+  isDemo        Boolean         @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([date])
+  @@schema("household")
+}
+
+model RecurringExpense {
+  id               String          @id @default(cuid())
+  name             String
+  categoryId       String
+  category         ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amount           Decimal         @db.Decimal(18, 2)
+  currency         String          @default("AED")
+  dayOfMonth       Int             @default(1)
+  isActive         Boolean         @default(true)
+  /// "YYYY-MM" of the last pending expense created, so each month is created once.
+  lastCreatedMonth String?
+  isDemo           Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+
+  @@schema("household")
+}
+
+model HouseholdAuditLog {
+  id       String   @id @default(cuid())
+  entity   String
+  entityId String
+  action   String
+  before   Json?
+  after    Json?
+  at       DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([at])
+  @@schema("household")
 }
