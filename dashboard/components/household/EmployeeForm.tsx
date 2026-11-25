@@ -82,34 +82,22 @@ export function EmployeeForm({ employeeId, initial }: { employeeId?: string; ini
           <input {...input("nationality")} maxLength={60} />
         </Field>
         <Field label="Phone">
-          <input {...input("phone")} type="tel" maxLength={40} />
-        </Field>
-        <Field label="Home-country contact" wide>
-          <input {...input("homeContact")} maxLength={200} placeholder="Name, relationship and phone" />
+          <input {...input("phone")} type="tel" maxLength={40} placeholder="e.g. 0300 1234567" />
         </Field>
       </Section>
 
-      <Section title="Documents" hint="You'll be warned before any of these expire. Upload copies after saving.">
-        <Field label="Passport number">
-          <input {...input("passportNo")} maxLength={40} autoComplete="off" />
+      <Section title="Documents" hint="You'll be warned before either of these expires. Upload copies after saving.">
+        <Field label="CNIC number">
+          <input {...input("cnicNo")} maxLength={20} autoComplete="off" inputMode="numeric" placeholder="35202-1234567-1" />
         </Field>
-        <Field label="Passport expiry">
-          <input {...input("passportExpiry")} type="date" />
+        <Field label="CNIC expiry date">
+          <input {...input("cnicExpiry")} type="date" />
         </Field>
-        <Field label="Emirates ID number">
-          <input {...input("emiratesIdNo")} maxLength={40} autoComplete="off" />
+        <Field label="Cantt Pass number">
+          <input {...input("canttPassNo")} maxLength={40} autoComplete="off" />
         </Field>
-        <Field label="Emirates ID expiry">
-          <input {...input("emiratesIdExpiry")} type="date" />
-        </Field>
-        <Field label="Visa or permit expiry">
-          <input {...input("visaExpiry")} type="date" />
-        </Field>
-        <Field label="Medical insurance expiry">
-          <input {...input("insuranceExpiry")} type="date" />
-        </Field>
-        <Field label="MOHRE / Tadbeer contract no. (optional)">
-          <input {...input("contractNo")} maxLength={60} />
+        <Field label="Cantt Pass expiry date">
+          <input {...input("canttPassExpiry")} type="date" />
         </Field>
       </Section>
 
@@ -135,9 +123,9 @@ export function EmployeeForm({ employeeId, initial }: { employeeId?: string; ini
         </Field>
       </Section>
 
-      <Section title="Pay" hint="In AED. Allowances are added to the basic salary in every payroll run.">
-        <Field label="Basic monthly salary (AED)">
-          <input {...input("basicSalary")} inputMode="decimal" required placeholder="e.g. 1500" />
+      <Section title="Pay" hint="In Pakistani rupees (PKR). Allowances are added to the basic salary in every payroll run.">
+        <Field label="Basic monthly salary (PKR)">
+          <input {...input("basicSalary")} inputMode="decimal" required placeholder="e.g. 35000" />
         </Field>
         <div className="sm:col-span-2 lg:col-span-3">
           <p className="text-sm">Recurring allowances</p>
@@ -156,13 +144,13 @@ export function EmployeeForm({ employeeId, initial }: { employeeId?: string; ini
                   />
                 </label>
                 <label className="block text-sm">
-                  <span className="sr-only">Allowance {index + 1} amount in AED</span>
+                  <span className="sr-only">Allowance {index + 1} amount in PKR</span>
                   <input
                     className={FIELD}
                     value={allowance.amount}
                     required
                     inputMode="decimal"
-                    placeholder="AED"
+                    placeholder="PKR"
                     onChange={(e) => set("allowances", values.allowances.map((a, i) => (i === index ? { ...a, amount: e.target.value } : a)))}
                   />
                 </label>
@@ -181,17 +169,6 @@ export function EmployeeForm({ employeeId, initial }: { employeeId?: string; ini
             <Plus aria-hidden className="size-4" /> Add allowance
           </Button>
         </div>
-        <Field label="Annual air ticket">
-          <select className={FIELD} name="airTicket" value={values.airTicket ? "yes" : "no"} onChange={(e) => set("airTicket", e.target.value === "yes")}>
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
-        </Field>
-        {values.airTicket && (
-          <Field label="Air ticket amount (AED)">
-            <input {...input("airTicketAmount")} inputMode="decimal" />
-          </Field>
-        )}
       </Section>
 
       <Section title="Payment">
@@ -199,15 +176,13 @@ export function EmployeeForm({ employeeId, initial }: { employeeId?: string; ini
           <select {...input("paymentMethod")}>
             <option value="CASH">Cash</option>
             <option value="BANK_TRANSFER">Bank transfer</option>
-            <option value="WPS">WPS</option>
-            <option value="EXCHANGE_HOUSE">Exchange house</option>
           </select>
         </Field>
         <Field label="Bank (optional)">
           <input {...input("bankName")} maxLength={80} />
         </Field>
         <Field label="IBAN (optional)">
-          <input {...input("iban")} maxLength={40} autoComplete="off" placeholder="AE07 0331 2345 6789 0123 456" />
+          <input {...input("iban")} maxLength={40} autoComplete="off" placeholder="PK36 SCBL 0000 0011 2345 6702" />
         </Field>
       </Section>
 

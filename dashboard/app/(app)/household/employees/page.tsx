@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ExpiryAlerts } from "@/components/household/ExpiryAlerts";
 import { Button } from "@/components/ui/button";
 import { expiryAlerts, listEmployees, PAYMENT_LABELS, STATUS_LABELS } from "@/lib/household/employees";
-import { formatAed, mask, sum } from "@/lib/household/money";
+import { formatPkr, mask, sum } from "@/lib/household/money";
 import { getHouseholdSettings } from "@/lib/household/settings";
 
 const FIELD = "h-11 w-full rounded-xl border border-line-strong bg-bg px-3 text-sm text-txt";
@@ -21,7 +21,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold">Employees</h1>
-          <p className="mt-2 text-dim">Your household staff. IDs and IBANs are shortened here; open an employee to see them in full.</p>
+          <p className="mt-2 text-dim">Your household staff in Pakistan, paid in PKR. CNICs and IBANs are shortened here; open an employee to see them in full.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="ghost" className="h-11 border border-line-strong">
@@ -43,8 +43,8 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
 
       <form role="search" aria-label="Search employees" className="mt-6 grid gap-3 sm:grid-cols-[1fr_12rem_auto]">
         <label className="block text-sm">
-          <span className="sr-only">Search by name, role, nationality or phone</span>
-          <input className={FIELD} type="search" name="q" defaultValue={q} placeholder="Search name, role, nationality or phone" />
+          <span className="sr-only">Search by name, role, phone or CNIC</span>
+          <input className={FIELD} type="search" name="q" defaultValue={q} placeholder="Search name, role, phone or CNIC" />
         </label>
         <label className="block text-sm">
           <span className="sr-only">Status</span>
@@ -92,13 +92,13 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                     </p>
                     <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                       <dt className="text-dim">Monthly pay</dt>
-                      <dd className="font-mono">{formatAed(monthly)}</dd>
+                      <dd className="font-mono">{formatPkr(monthly)}</dd>
                       <dt className="text-dim">Paid by</dt>
                       <dd>{PAYMENT_LABELS[e.paymentMethod]}</dd>
-                      <dt className="text-dim">Passport</dt>
-                      <dd className="font-mono">{mask(e.passportNo)}</dd>
-                      <dt className="text-dim">Emirates ID</dt>
-                      <dd className="font-mono">{mask(e.emiratesIdNo)}</dd>
+                      <dt className="text-dim">CNIC</dt>
+                      <dd className="font-mono">{mask(e.cnicNo)}</dd>
+                      <dt className="text-dim">Cantt Pass</dt>
+                      <dd className="font-mono">{mask(e.canttPassNo)}</dd>
                     </dl>
                   </div>
                 </Link>
@@ -108,7 +108,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
         </ul>
       ) : (
         <p className="mt-6 rounded-[1.5rem] border border-line bg-surface p-5 text-dim">
-          {q || status ? "No employees match that search." : "No employees yet. Add your maid, driver or other household staff."}
+          {q || status ? "No employees match that search." : "No employees yet. Add your household staff in Pakistan, such as a maid, driver or cook."}
         </p>
       )}
     </>

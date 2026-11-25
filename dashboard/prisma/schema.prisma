@@ -338,8 +338,6 @@ enum EmployeeStatus {
 enum StaffPaymentMethod {
   CASH
   BANK_TRANSFER
-  WPS
-  EXCHANGE_HOUSE
 
   @@schema("household")
 }
@@ -405,10 +403,8 @@ enum ExpenseStatus {
 
 enum DocumentType {
   CONTRACT
-  PASSPORT
-  EMIRATES_ID
-  VISA
-  INSURANCE
+  CNIC
+  CANTT_PASS
   OTHER
 
   @@schema("household")
@@ -453,25 +449,22 @@ model Employee {
   nationality      String              @default("")
   photoFileId      String?
   phone            String              @default("")
-  homeContact      String              @default("")
-  passportNo       String              @default("")
-  passportExpiry   DateTime?           @db.Date
-  emiratesIdNo     String              @default("")
-  emiratesIdExpiry DateTime?           @db.Date
-  visaExpiry       DateTime?           @db.Date
-  contractNo       String              @default("")
-  insuranceExpiry  DateTime?           @db.Date
+  /// Pakistani national identity card, such as 35202-1234567-1.
+  cnicNo           String              @default("")
+  cnicExpiry       DateTime?           @db.Date
+  /// Pass for entering a cantonment area.
+  canttPassNo      String              @default("")
+  canttPassExpiry  DateTime?           @db.Date
   joiningDate      DateTime            @db.Date
   contractStart    DateTime?           @db.Date
   contractEnd      DateTime?           @db.Date
   status           EmployeeStatus      @default(ACTIVE)
+  /// In PKR, since the staff are in Pakistan. Allowances, advances and payroll are in PKR too.
   basicSalary      Decimal             @db.Decimal(18, 2)
   paymentMethod    StaffPaymentMethod  @default(CASH)
   bankName         String              @default("")
   iban             String              @default("")
   leaveDaysPerYear Int                 @default(30)
-  airTicket        Boolean             @default(false)
-  airTicketAmount  Decimal?            @db.Decimal(18, 2)
   notes            String              @default("")
   isDemo           Boolean             @default(false)
   deletedAt        DateTime?

@@ -38,12 +38,10 @@ export function DocumentUpload({ employeeId }: { employeeId: string }) {
     <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
       <label className="block text-sm">
         Document
-        <select className={FIELD} name="type" required defaultValue="PASSPORT">
+        <select className={FIELD} name="type" required defaultValue="CNIC">
+          <option value="CNIC">CNIC copy</option>
+          <option value="CANTT_PASS">Cantt Pass copy</option>
           <option value="CONTRACT">Contract</option>
-          <option value="PASSPORT">Passport copy</option>
-          <option value="EMIRATES_ID">Emirates ID copy</option>
-          <option value="VISA">Visa or permit</option>
-          <option value="INSURANCE">Medical insurance</option>
           <option value="OTHER">Other</option>
         </select>
       </label>

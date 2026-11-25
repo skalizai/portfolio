@@ -75,8 +75,8 @@ export function SettingsForm({ initial }: { initial: Values }) {
           End-of-service gratuity
         </h2>
         <p className="mt-1 text-sm text-dim">
-          Used only for an estimate on each employee: this many days of basic pay for every completed year of service. It isn&apos;t legal advice; check the actual
-          amount with MOHRE or Tadbeer.
+          Used only for an estimate on each employee: this many days of basic pay for every completed year of service. It isn&apos;t legal advice; the actual
+          amount depends on what you agreed with each employee.
         </p>
         <label className="mt-4 block max-w-xs text-sm">
           Days of basic pay per year

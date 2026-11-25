@@ -6,14 +6,10 @@ export type EmployeeFormValues = {
   role: string;
   nationality: string;
   phone: string;
-  homeContact: string;
-  passportNo: string;
-  passportExpiry: string;
-  emiratesIdNo: string;
-  emiratesIdExpiry: string;
-  visaExpiry: string;
-  contractNo: string;
-  insuranceExpiry: string;
+  cnicNo: string;
+  cnicExpiry: string;
+  canttPassNo: string;
+  canttPassExpiry: string;
   joiningDate: string;
   contractStart: string;
   contractEnd: string;
@@ -24,8 +20,6 @@ export type EmployeeFormValues = {
   bankName: string;
   iban: string;
   leaveDaysPerYear: number;
-  airTicket: boolean;
-  airTicketAmount: string;
   notes: string;
 };
 
@@ -34,14 +28,10 @@ export const EMPTY_EMPLOYEE: EmployeeFormValues = {
   role: "",
   nationality: "",
   phone: "",
-  homeContact: "",
-  passportNo: "",
-  passportExpiry: "",
-  emiratesIdNo: "",
-  emiratesIdExpiry: "",
-  visaExpiry: "",
-  contractNo: "",
-  insuranceExpiry: "",
+  cnicNo: "",
+  cnicExpiry: "",
+  canttPassNo: "",
+  canttPassExpiry: "",
   joiningDate: "",
   contractStart: "",
   contractEnd: "",
@@ -52,8 +42,6 @@ export const EMPTY_EMPLOYEE: EmployeeFormValues = {
   bankName: "",
   iban: "",
   leaveDaysPerYear: 30,
-  airTicket: false,
-  airTicketAmount: "",
   notes: "",
 };
 
@@ -67,26 +55,20 @@ export function toFormValues(e: Prisma.EmployeeGetPayload<{ include: { allowance
     role: e.role,
     nationality: e.nationality,
     phone: e.phone,
-    homeContact: e.homeContact,
-    passportNo: e.passportNo,
-    passportExpiry: day(e.passportExpiry),
-    emiratesIdNo: e.emiratesIdNo,
-    emiratesIdExpiry: day(e.emiratesIdExpiry),
-    visaExpiry: day(e.visaExpiry),
-    contractNo: e.contractNo,
-    insuranceExpiry: day(e.insuranceExpiry),
+    cnicNo: e.cnicNo,
+    cnicExpiry: day(e.cnicExpiry),
+    canttPassNo: e.canttPassNo,
+    canttPassExpiry: day(e.canttPassExpiry),
     joiningDate: day(e.joiningDate),
     contractStart: day(e.contractStart),
     contractEnd: day(e.contractEnd),
     status: e.status,
-    basicSalary: e.basicSalary.toFixed(2),
-    allowances: e.allowances.map((a) => ({ name: a.name, amount: a.amount.toFixed(2) })),
+    basicSalary: e.basicSalary.toFixed(0),
+    allowances: e.allowances.map((a) => ({ name: a.name, amount: a.amount.toFixed(0) })),
     paymentMethod: e.paymentMethod,
     bankName: e.bankName,
     iban: e.iban,
     leaveDaysPerYear: e.leaveDaysPerYear,
-    airTicket: e.airTicket,
-    airTicketAmount: e.airTicketAmount ? e.airTicketAmount.toFixed(2) : "",
     notes: e.notes,
   };
 }

@@ -7,7 +7,7 @@ import { ExpiryAlerts } from "@/components/household/ExpiryAlerts";
 import { db } from "@/lib/db";
 import { toFormValues } from "@/lib/household/employee-view";
 import { DOCUMENT_LABELS, estimatedGratuity, expiryAlerts } from "@/lib/household/employees";
-import { formatAed } from "@/lib/household/money";
+import { formatPkr } from "@/lib/household/money";
 import { getHouseholdSettings } from "@/lib/household/settings";
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -56,7 +56,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
             <h2 id="gratuity" className="font-semibold">
               Estimated gratuity
             </h2>
-            <p className="mt-2 font-display text-3xl font-semibold">{formatAed(gratuity.amount)}</p>
+            <p className="mt-2 font-display text-3xl font-semibold">{formatPkr(gratuity.amount)}</p>
             <p className="mt-2 text-sm text-dim">
               An estimate only: {gratuity.years} completed {gratuity.years === 1 ? "year" : "years"} × {settings.gratuityDaysPerYear.toString()} days of basic pay (basic ÷ 30 a day). The
               real amount depends on the contract and the law.
@@ -100,7 +100,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
         <h2 id="upload" className="font-semibold">
           Upload a document
         </h2>
-        <p className="mt-1 text-sm text-dim">Contract, passport copy, Emirates ID copy and so on. Only you can open them.</p>
+        <p className="mt-1 text-sm text-dim">CNIC copy, Cantt Pass copy, contract and so on. Only you can open them.</p>
         <div className="mt-3">
           <DocumentUpload employeeId={employee.id} />
         </div>

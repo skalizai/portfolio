@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/household/audit";
 import { saveUpload } from "@/lib/household/files";
 
-const TYPES = ["CONTRACT", "PASSPORT", "EMIRATES_ID", "VISA", "INSURANCE", "OTHER"] as const;
+const TYPES = ["CONTRACT", "CNIC", "CANTT_PASS", "OTHER"] as const;
 
 /** Attaches a document (PDF or image, up to 5 MB) to an employee, with an optional expiry date. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

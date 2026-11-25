@@ -8,7 +8,7 @@ const money = (label: string) =>
   z
     .string()
     .trim()
-    .regex(/^\d+(\.\d{1,2})?$/, `${label} must be an amount, like 1500 or 1500.50`);
+    .regex(/^\d+(\.\d{1,2})?$/, `${label} must be an amount in rupees, like 35000`);
 const optionalDate = z
   .string()
   .trim()
@@ -18,8 +18,17 @@ const optionalDate = z
 const text = (max: number) => z.string().trim().max(max).default("");
 
 export const STATUS_LABELS = { ACTIVE: "Active", ON_LEAVE: "On leave", LEFT: "Left" } as const;
-export const PAYMENT_LABELS = { CASH: "Cash", BANK_TRANSFER: "Bank transfer", WPS: "WPS", EXCHANGE_HOUSE: "Exchange house" } as const;
-export const DOCUMENT_LABELS = { CONTRACT: "Contract", PASSPORT: "Passport copy", EMIRATES_ID: "Emirates ID copy", VISA: "Visa or permit", INSURANCE: "Medical insurance", OTHER: "Other" } as const;
+export const PAYMENT_LABELS = { CASH: "Cash", BANK_TRANSFER: "Bank transfer" } as const;
+export const DOCUMENT_LABELS = { CONTRACT: "Contract", CNIC: "CNIC copy", CANTT_PASS: "Cantt Pass copy", OTHER: "Other" } as const;
+
+/** A CNIC is 13 digits. Accepted with or without dashes, and stored as 12345-1234567-1. */
+const cnic = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ?? "").replace(/[\s-]/g, ""))
+  .pipe(z.string().regex(/^(\d{13})?$/, "A CNIC has 13 digits, like 35202-1234567-1"))
+  .transform((digits) => (digits ? `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}` : ""));
 
 export const EmployeeInputSchema = z
   .object({
@@ -27,14 +36,10 @@ export const EmployeeInputSchema = z
     role: z.string().trim().min(1, "Enter the role, such as maid or driver").max(60),
     nationality: text(60),
     phone: text(40),
-    homeContact: text(200),
-    passportNo: text(40),
-    passportExpiry: optionalDate,
-    emiratesIdNo: text(40),
-    emiratesIdExpiry: optionalDate,
-    visaExpiry: optionalDate,
-    contractNo: text(60),
-    insuranceExpiry: optionalDate,
+    cnicNo: cnic,
+    cnicExpiry: optionalDate,
+    canttPassNo: text(40),
+    canttPassExpiry: optionalDate,
     joiningDate: z
       .string()
       .trim()
@@ -48,21 +53,14 @@ export const EmployeeInputSchema = z
       .array(z.object({ name: z.string().trim().min(1, "Name each allowance").max(60), amount: money("Each allowance") }))
       .max(10, "Up to 10 allowances")
       .default([]),
-    paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "WPS", "EXCHANGE_HOUSE"]).default("CASH"),
+    paymentMethod: z.enum(["CASH", "BANK_TRANSFER"]).default("CASH"),
     bankName: text(80),
     iban: z
       .string()
       .trim()
       .transform((value) => value.replace(/\s+/g, "").toUpperCase())
-      .pipe(z.string().regex(/^([A-Z]{2}\d{2}[A-Z0-9]{8,30})?$/, "That IBAN doesn't look right. It starts with two letters, like AE07…")),
+      .pipe(z.string().regex(/^([A-Z]{2}\d{2}[A-Z0-9]{8,30})?$/, "That IBAN doesn't look right. A Pakistani IBAN starts with PK, like PK36SCBL…")),
     leaveDaysPerYear: z.coerce.number().int().min(0).max(60).default(30),
-    airTicket: z.boolean().default(false),
-    airTicketAmount: z
-      .string()
-      .trim()
-      .regex(/^(\d+(\.\d{1,2})?)?$/, "The ticket amount must be an amount")
-      .optional()
-      .transform((value) => (value ? value : null)),
     notes: text(2000),
   })
   .superRefine((input, ctx) => {
@@ -79,7 +77,7 @@ export async function listEmployees(filters: { q?: string; status?: string } = {
   const where: Prisma.EmployeeWhereInput = {
     deletedAt: null,
     ...(filters.status && ["ACTIVE", "ON_LEAVE", "LEFT"].includes(filters.status) ? { status: filters.status as "ACTIVE" | "ON_LEAVE" | "LEFT" } : {}),
-    ...(q ? { OR: [{ fullName: { contains: q, mode: "insensitive" } }, { role: { contains: q, mode: "insensitive" } }, { nationality: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }] } : {}),
+    ...(q ? { OR: [{ fullName: { contains: q, mode: "insensitive" } }, { role: { contains: q, mode: "insensitive" } }, { nationality: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }, { cnicNo: { contains: q } }] } : {}),
   };
   return db().employee.findMany({ where, orderBy: [{ status: "asc" }, { fullName: "asc" }], include: { allowances: true, documents: true } });
 }
@@ -119,7 +117,8 @@ export async function removeEmployee(id: string) {
 export type ExpiryAlert = { employeeId: string; employeeName: string; document: string; expiry: Date; daysLeft: number };
 
 /**
- * Documents that have expired or expire within the alert window, soonest first. Employees who have
+ * CNICs, Cantt Passes, contracts and uploaded documents that have expired or expire within the
+ * alert window, soonest first. Employees who have
  * left aren't included, since their documents no longer matter to you.
  */
 export function expiryAlerts(
@@ -127,10 +126,8 @@ export function expiryAlerts(
     id: string;
     fullName: string;
     status: string;
-    passportExpiry: Date | null;
-    emiratesIdExpiry: Date | null;
-    visaExpiry: Date | null;
-    insuranceExpiry: Date | null;
+    cnicExpiry: Date | null;
+    canttPassExpiry: Date | null;
     contractEnd: Date | null;
     documents?: { type: keyof typeof DOCUMENT_LABELS; expiry: Date | null }[];
   }[],
@@ -142,10 +139,8 @@ export function expiryAlerts(
   for (const e of employees) {
     if (e.status === "LEFT") continue;
     const dates: [string, Date | null][] = [
-      ["Passport", e.passportExpiry],
-      ["Emirates ID", e.emiratesIdExpiry],
-      ["Visa or permit", e.visaExpiry],
-      ["Medical insurance", e.insuranceExpiry],
+      ["CNIC", e.cnicExpiry],
+      ["Cantt Pass", e.canttPassExpiry],
       ["Contract", e.contractEnd],
       ...(e.documents ?? []).map((d) => [`${DOCUMENT_LABELS[d.type]} (file)`, d.expiry] as [string, Date | null]),
     ];
