@@ -12,11 +12,6 @@ export const SettingsInputSchema = z.object({
     .refine((value) => Number(value) > 0, "The exchange rate must be above zero"),
   payrollDay: z.coerce.number().int().min(1, "Choose a day from 1 to 28").max(28, "Choose a day from 1 to 28"),
   expiryAlertDays: z.coerce.number().int().min(1, "Choose 1 to 365 days").max(365, "Choose 1 to 365 days"),
-  gratuityDaysPerYear: z
-    .string()
-    .trim()
-    .regex(/^\d+(\.\d+)?$/, "Enter the number of days, like 14")
-    .refine((value) => Number(value) <= 60, "That's more than 60 days a year"),
 });
 
 /** The single settings row, created with defaults if it's somehow missing. */

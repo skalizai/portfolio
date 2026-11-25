@@ -412,19 +412,17 @@ enum DocumentType {
 
 /// One row only, with id "default".
 model HouseholdSettings {
-  id                  String   @id @default("default")
-  employerName        String   @default("My household")
-  address             String   @default("")
-  logoFileId          String?
-  baseCurrency        String   @default("AED")
-  secondaryCurrency   String   @default("PKR")
+  id                String   @id @default("default")
+  employerName      String   @default("My household")
+  address           String   @default("")
+  logoFileId        String?
+  baseCurrency      String   @default("AED")
+  secondaryCurrency String   @default("PKR")
   /// PKR per 1 AED, used to pre-fill a transfer. You enter the actual rate on each transfer.
-  defaultPkrPerAed    Decimal  @default(75) @db.Decimal(18, 6)
-  payrollDay          Int      @default(28)
-  expiryAlertDays     Int      @default(60)
-  /// Days of basic pay per completed year of service, for the estimated gratuity.
-  gratuityDaysPerYear Decimal  @default(14) @db.Decimal(6, 2)
-  updatedAt           DateTime @updatedAt
+  defaultPkrPerAed  Decimal  @default(75) @db.Decimal(18, 6)
+  payrollDay        Int      @default(28)
+  expiryAlertDays   Int      @default(60)
+  updatedAt         DateTime @updatedAt
 
   @@schema("household")
 }

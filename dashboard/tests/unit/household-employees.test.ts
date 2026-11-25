@@ -1,22 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { EmployeeInputSchema, estimatedGratuity, expiryAlerts } from "@/lib/household/employees";
+import { EmployeeInputSchema, expiryAlerts } from "@/lib/household/employees";
 
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
-
-describe("estimatedGratuity", () => {
-  it("counts only completed years, at basic ÷ 30 per day", () => {
-    // PKR 36,000 basic is 1,200 a day; 14 days a year is 16,800 a year.
-    expect(estimatedGratuity("36000", day("2021-03-15"), "14", day("2026-03-14"))).toMatchObject({ years: 4 });
-    const fifth = estimatedGratuity("36000", day("2021-03-15"), "14", day("2026-03-15"));
-    expect(fifth.years).toBe(5);
-    expect(fifth.amount.toFixed(2)).toBe("84000.00");
-    expect(estimatedGratuity("35000", day("2026-01-01"), "14", day("2026-11-25")).amount.toFixed(2)).toBe("0.00");
-  });
-
-  it("follows the configured days per year", () => {
-    expect(estimatedGratuity("30000", day("2020-01-01"), "30", day("2026-06-01")).amount.toFixed(2)).toBe("180000.00");
-  });
-});
 
 describe("expiryAlerts", () => {
   const base = { status: "ACTIVE", cnicExpiry: null, canttPassExpiry: null, contractEnd: null };

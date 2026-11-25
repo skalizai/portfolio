@@ -2,7 +2,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { audit } from "@/lib/household/audit";
-import { D, type Dec, type Num, round2 } from "@/lib/household/money";
 
 const money = (label: string) =>
   z
@@ -153,15 +152,3 @@ export function expiryAlerts(
   return alerts.sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
-/**
- * An estimate of end-of-service gratuity: the configured days of basic pay (basic ÷ 30 a day) for
- * each completed year of service. Only an estimate; the real amount depends on the contract and law.
- */
-export function estimatedGratuity(basicSalary: Num, joiningDate: Date, daysPerYear: Num, asOf = new Date()): { years: number; amount: Dec } {
-  let years = asOf.getUTCFullYear() - joiningDate.getUTCFullYear();
-  const anniversaryPassed =
-    asOf.getUTCMonth() > joiningDate.getUTCMonth() || (asOf.getUTCMonth() === joiningDate.getUTCMonth() && asOf.getUTCDate() >= joiningDate.getUTCDate());
-  if (!anniversaryPassed) years -= 1;
-  years = Math.max(0, years);
-  return { years, amount: round2(new D(basicSalary).dividedBy(30).times(daysPerYear).times(years)) };
-}

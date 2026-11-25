@@ -64,8 +64,7 @@ test.describe.serial("household and family", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Shazia Bibi" })).toBeVisible();
     await expect(page.getByRole("region", { name: /document needs attention/ })).toContainText("Cantt Pass");
-    // 4 completed years of PKR 35,000 basic at 14 days a year: 35,000 / 30 x 14 x 4 = 65,333.33.
-    await expect(page.getByRole("region", { name: "Estimated gratuity" })).toContainText("Rs 65,333");
+    await expect(page.getByText(/gratuity/i)).toHaveCount(0);
     await expect(page.getByLabel("CNIC number")).toHaveValue("35202-1234567-1");
     await expect(page.getByLabel("IBAN (optional)")).toHaveValue("PK36SCBL0000001123456702");
 
@@ -126,7 +125,7 @@ test.describe.serial("household and family", () => {
     await noA11yIssues(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 
-    const bad = await context.request.put("/api/household/settings", { data: { employerName: "X", address: "", defaultPkrPerAed: "0", payrollDay: 28, expiryAlertDays: 60, gratuityDaysPerYear: "14" } });
+    const bad = await context.request.put("/api/household/settings", { data: { employerName: "X", address: "", defaultPkrPerAed: "0", payrollDay: 28, expiryAlertDays: 60 } });
     expect(bad.status()).toBe(400);
     expect((await bad.json()).error).toContain("above zero");
   });

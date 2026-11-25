@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export const FIELD = "mt-1 h-11 w-full rounded-xl border border-line-strong bg-bg px-3 text-sm text-txt";
 
-type Values = { employerName: string; address: string; defaultPkrPerAed: string; payrollDay: number; expiryAlertDays: number; gratuityDaysPerYear: string };
+type Values = { employerName: string; address: string; defaultPkrPerAed: string; payrollDay: number; expiryAlertDays: number };
 
 export function SettingsForm({ initial }: { initial: Values }) {
   const router = useRouter();
@@ -68,20 +68,6 @@ export function SettingsForm({ initial }: { initial: Values }) {
             <input className={FIELD} name="expiryAlertDays" type="number" min={1} max={365} defaultValue={initial.expiryAlertDays} required />
           </label>
         </div>
-      </section>
-
-      <section aria-labelledby="gratuity" className="rounded-[1.5rem] border border-line bg-surface p-5">
-        <h2 id="gratuity" className="text-lg font-semibold">
-          End-of-service gratuity
-        </h2>
-        <p className="mt-1 text-sm text-dim">
-          Used only for an estimate on each employee: this many days of basic pay for every completed year of service. It isn&apos;t legal advice; the actual
-          amount depends on what you agreed with each employee.
-        </p>
-        <label className="mt-4 block max-w-xs text-sm">
-          Days of basic pay per year
-          <input className={FIELD} name="gratuityDaysPerYear" defaultValue={initial.gratuityDaysPerYear} inputMode="decimal" required />
-        </label>
       </section>
 
       <div className="flex flex-wrap items-center gap-3">

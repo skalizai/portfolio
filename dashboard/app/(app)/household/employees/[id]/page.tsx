@@ -6,8 +6,7 @@ import { EmployeeForm } from "@/components/household/EmployeeForm";
 import { ExpiryAlerts } from "@/components/household/ExpiryAlerts";
 import { db } from "@/lib/db";
 import { toFormValues } from "@/lib/household/employee-view";
-import { DOCUMENT_LABELS, estimatedGratuity, expiryAlerts } from "@/lib/household/employees";
-import { formatPkr } from "@/lib/household/money";
+import { DOCUMENT_LABELS, expiryAlerts } from "@/lib/household/employees";
 import { getHouseholdSettings } from "@/lib/household/settings";
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -23,7 +22,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
 
   const files = new Map((await db().storedFile.findMany({ where: { id: { in: employee.documents.map((d) => d.fileId) } }, select: { id: true, filename: true, size: true } })).map((f) => [f.id, f]));
   const alerts = expiryAlerts([employee], settings.expiryAlertDays);
-  const gratuity = estimatedGratuity(employee.basicSalary, employee.joiningDate, settings.gratuityDaysPerYear);
 
   return (
     <>
@@ -52,17 +50,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
         </div>
 
         <aside className="min-w-0 space-y-5">
-          <section aria-labelledby="gratuity" className="rounded-[1.5rem] border border-line bg-surface p-5">
-            <h2 id="gratuity" className="font-semibold">
-              Estimated gratuity
-            </h2>
-            <p className="mt-2 font-display text-3xl font-semibold">{formatPkr(gratuity.amount)}</p>
-            <p className="mt-2 text-sm text-dim">
-              An estimate only: {gratuity.years} completed {gratuity.years === 1 ? "year" : "years"} × {settings.gratuityDaysPerYear.toString()} days of basic pay (basic ÷ 30 a day). The
-              real amount depends on the contract and the law.
-            </p>
-          </section>
-
           <section aria-labelledby="documents" className="rounded-[1.5rem] border border-line bg-surface p-5">
             <h2 id="documents" className="font-semibold">
               Documents ({employee.documents.length})

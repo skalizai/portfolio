@@ -15,7 +15,6 @@ export default async function HouseholdSettingsPage() {
             defaultPkrPerAed: settings.defaultPkrPerAed.toString(),
             payrollDay: settings.payrollDay,
             expiryAlertDays: settings.expiryAlertDays,
-            gratuityDaysPerYear: settings.gratuityDaysPerYear.toString(),
           }}
         />
       </div>
