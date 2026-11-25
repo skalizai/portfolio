@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // see, so they're listed here for the routes that make PDFs.
   outputFileTracingIncludes: {
     "/api/applications/**": ["./node_modules/pdfkit/js/standard-fonts/**/*"],
+    "/api/household/payslips/**": ["./node_modules/pdfkit/js/standard-fonts/**/*"],
   },
   async headers() {
     return [

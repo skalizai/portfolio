@@ -202,12 +202,44 @@ test.describe.serial("household and family", () => {
     const xlsx = await context.request.get(`/api/household/payroll/export?month=${month}`);
     expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
 
+    // The payslip: listed, viewable for printing (without the menus), as a PDF and in the month's ZIP.
+    await page.goto("/household/payslips");
+    const slipRow = page.getByRole("listitem").filter({ hasText: "Aslam Khan" });
+    await expect(slipRow).toContainText("Rs 37,600");
+    await noA11yIssues(page);
+    const pdfHref = await slipRow.getByRole("link", { name: /^PDF/ }).getAttribute("href");
+    const pdf = await context.request.get(pdfHref!);
+    expect(pdf.headers()["content-type"]).toBe("application/pdf");
+    expect((await pdf.body()).subarray(0, 4).toString()).toBe("%PDF");
+    expect(pdf.headers()["content-disposition"]).toContain(`Payslip%20${month}%20Aslam%20Khan.pdf`);
+    const zip = await context.request.get(`/api/household/payslips/zip?month=${month}`);
+    expect(zip.headers()["content-type"]).toBe("application/zip");
+    expect((await zip.body()).toString("latin1")).toContain(`Payslip ${month} Aslam Khan.pdf`);
+
+    await slipRow.getByRole("link", { name: /View and print/ }).click();
+    const slip = page.getByRole("article", { name: "Payslip" });
+    await expect(slip).toContainText("Net pay");
+    await expect(slip).toContainText("Rs 37,600");
+    await expect(slip).toContainText("Advance repayment (Medical)");
+    await expect(slip).toContainText("Advance balance remaining");
+    await expect(slip).toContainText("Rs 10,000");
+    await expect(slip).toContainText("Received by (employee signature)");
+    await expect(slip).toContainText("Bank transfer");
+    await noA11yIssues(page);
+    await page.emulateMedia({ media: "print" });
+    await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
+    await expect(slip).toBeVisible();
+    await page.emulateMedia({ media: "screen" });
+
     // Reopening needs a reason, and unlocks the month.
     await page.goto(`/household/payroll/${month}`);
     page.once("dialog", (dialog) => dialog.accept("Forgot overtime"));
     await page.getByRole("button", { name: "Reopen to make changes" }).click();
     await expect(page.getByRole("button", { name: "Approve payroll" })).toBeVisible();
     await expect(page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Aslam Khan" }) }).getByRole("button", { name: /^Save/ })).toBeVisible();
+    // Reopening withdraws the month's payslips until it's paid again.
+    expect((await context.request.get(`/api/household/payslips/zip?month=${month}`)).status()).toBe(404);
 
     // Skipping the next month's repayment moves it to a new month at the end.
     await page.goto("/household/advances");

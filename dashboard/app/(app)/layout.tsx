@@ -12,14 +12,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!isAllowedEmail(session?.user?.email)) redirect("/login");
 
   return (
-    <div className="bg-glow min-h-dvh">
+    <div className="bg-glow min-h-dvh print:bg-none">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-30 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2"
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
+      {/* Menus and tabs are left off printouts, such as payslips. */}
+      <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur print:hidden">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-semibold">
             <span aria-hidden className="bg-gradient-accent size-2.5 rounded-full" />
@@ -45,7 +46,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-6xl px-4 py-6">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-6 print:max-w-none print:p-0">
         {children}
       </main>
     </div>
