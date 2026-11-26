@@ -144,3 +144,26 @@ describe("advances and the draft payroll", () => {
     expect(await db().householdAuditLog.count({ where: { entity: "Advance", action: "delete" } })).toBe(1);
   });
 });
+
+describe("changing an advance's monthly amount", () => {
+  it("re-plans what's due, leaves an approved month alone and updates draft payroll", async () => {
+    const shazia = await addEmployee("Shazia", "35000");
+    const created = await advances.createAdvance({ employeeId: shazia.id, date: "2026-11-01", amount: "20000", reason: "Solar plates", plan: "FIXED_MONTHLY", perMonth: "2000", startMonth: "2026-11" });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    await payroll.prepareRun("2026-11");
+    const nov = (await payroll.getRun("2026-11"))!;
+    expect((await payroll.approveRun(nov.id)).ok).toBe(true);
+    await payroll.prepareRun("2026-12");
+
+    const changed = await advances.changeMonthlyAmount(created.id, "5000", "2026-12");
+    expect(changed).toEqual({ ok: true });
+    const installments = await db().advanceInstallment.findMany({ where: { advanceId: created.id }, orderBy: { month: "asc" } });
+    expect(installments.map((i) => `${i.month} ${i.amount.toFixed(0)}`)).toEqual(["2026-11 2000", "2026-12 5000", "2027-01 5000", "2027-02 5000", "2027-03 3000"]);
+    const dec = (await payroll.getRun("2026-12"))!;
+    expect(dec.lines[0]!.totalDeductions.toFixed(0)).toBe("5000");
+    expect(await db().householdAuditLog.count({ where: { entityId: created.id, action: "change-monthly-amount" } })).toBe(1);
+
+    expect(await advances.changeMonthlyAmount(created.id, "5000", "2026-11")).toMatchObject({ ok: false, status: 400 });
+  });
+});

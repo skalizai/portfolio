@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { D } from "@/lib/household/money";
-import { advanceBalance, computeLine, firstRepaymentMonth, planInstallments, rescheduleInstallment, unpaidLeaveAmount, type ScheduledInstallment } from "@/lib/household/payroll-calc";
+import { advanceBalance, computeLine, firstRepaymentMonth, planInstallments, replanRemaining, rescheduleInstallment, unpaidLeaveAmount, type ScheduledInstallment } from "@/lib/household/payroll-calc";
 
 const line = (overrides: Partial<Parameters<typeof computeLine>[0]> = {}) =>
   computeLine({ basic: "35000", allowances: [{ name: "Food", amount: "3000" }], earnings: [], unpaidDays: "0", installments: [], otherDeductions: [], ...overrides });
@@ -100,5 +100,42 @@ describe("advanceBalance", () => {
       { amount: "5000", status: "DUE" },
     ]);
     expect([balance.total, balance.repaid, balance.outstanding].map((v) => v.toFixed(2))).toEqual(["25000.00", "10000.00", "15000.00"]);
+  });
+});
+
+describe("replanRemaining", () => {
+  const due = (id: string, month: string, amount: string, status: ScheduledInstallment["status"] = "DUE"): ScheduledInstallment => ({ id, month, amount: new D(amount), status });
+  const tenMonths = Array.from({ length: 10 }, (_, i) => due(`i${i}`, `2026-${String(i + 1).padStart(2, "0")}`, "2000"));
+
+  it("replaces what's due with a new monthly amount, still repaying in full", () => {
+    const result = replanRemaining("20000", tenMonths, new Set(), "4000");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.removes).toHaveLength(10);
+    expect(result.result.adds.map((a) => `${a.month} ${a.amount.toFixed(0)}`)).toEqual(["2026-01 4000", "2026-02 4000", "2026-03 4000", "2026-04 4000", "2026-05 4000"]);
+  });
+
+  it("keeps paid and approved months, starts after them and ends with a smaller month", () => {
+    const schedule = [due("a", "2026-01", "2000", "PAID"), due("b", "2026-02", "2000"), ...tenMonths.slice(2)];
+    const result = replanRemaining("20000", schedule, new Set(["2026-02"]), "7000");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.removes).not.toContain("a");
+    expect(result.result.removes).not.toContain("b");
+    expect(result.result.remaining.toFixed(0)).toBe("16000");
+    expect(result.result.adds.map((a) => `${a.month} ${a.amount.toFixed(0)}`)).toEqual(["2026-03 7000", "2026-04 7000", "2026-05 2000"]);
+  });
+
+  it("goes around a skipped month and refuses a start before a paid one", () => {
+    const schedule = [due("a", "2026-01", "2000", "PAID"), due("s", "2026-02", "2000", "SKIPPED"), due("c", "2026-03", "2000")];
+    const result = replanRemaining("6000", schedule, new Set(), "1000", "2026-02");
+    expect(result.ok && result.result.adds.map((a) => a.month)).toEqual(["2026-03", "2026-04", "2026-05", "2026-06"]);
+    expect(replanRemaining("6000", schedule, new Set(), "1000", "2026-01")).toMatchObject({ ok: false });
+  });
+
+  it("refuses nonsense", () => {
+    expect(replanRemaining("20000", tenMonths, new Set(), "0")).toMatchObject({ ok: false });
+    expect(replanRemaining("20000", tenMonths, new Set(), "100")).toMatchObject({ ok: false, error: expect.stringContaining("5 years") });
+    expect(replanRemaining("2000", [due("a", "2026-01", "2000", "PAID")], new Set(), "500")).toMatchObject({ ok: false, error: expect.stringContaining("Nothing") });
   });
 });

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/household/audit";
 import { D, isMonth, monthOf } from "@/lib/household/money";
-import { advanceBalance, firstRepaymentMonth, planInstallments, rescheduleInstallment } from "@/lib/household/payroll-calc";
+import { advanceBalance, firstRepaymentMonth, planInstallments, replanRemaining, rescheduleInstallment } from "@/lib/household/payroll-calc";
 import { recomputeDraftLinesForMonth } from "@/lib/household/payroll";
 import { getHouseholdSettings } from "@/lib/household/settings";
 
@@ -96,6 +96,36 @@ export async function changeInstallment(installmentId: string, newAmount: string
     await audit(tx, { entity: "Advance", entityId: installment.advanceId, action: update.status === "SKIPPED" ? "skip-installment" : "change-installment", before: installment.advance, after });
     const months = new Set([installment.month, ...adds.map((a) => a.month), ...schedule.filter((s) => changes.some((c) => c.id === s.id) || removes.includes(s.id)).map((s) => s.month)]);
     for (const month of months) await recomputeDraftLinesForMonth(tx, month, installment.advance.employeeId);
+    return { ok: true as const };
+  });
+}
+
+/**
+ * Changes how much is repaid each month from now on. Every installment still due is replaced by a
+ * new schedule, so the advance is still repaid in full; paid, skipped and approved months stay.
+ */
+export async function changeMonthlyAmount(advanceId: string, perMonth: string, startMonth?: string): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  return db().$transaction(async (tx) => {
+    const advance = await tx.advance.findFirst({ where: { id: advanceId, deletedAt: null }, include: { installments: true } });
+    if (!advance) return { ok: false as const, error: "That advance doesn't exist.", status: 404 };
+    if (advance.status === "CLOSED") return { ok: false as const, error: "This advance is already repaid.", status: 409 };
+
+    const locked = new Set<string>();
+    for (const month of new Set(advance.installments.map((i) => i.month))) if (await lockedMonth(tx, month)) locked.add(month);
+    const schedule = advance.installments.map((i) => ({ id: i.id, month: i.month, amount: new D(i.amount), status: i.status }));
+    const plan = replanRemaining(advance.amount, schedule, locked, perMonth, startMonth);
+    if (!plan.ok) return { ok: false as const, error: plan.error, status: 400 };
+    for (const add of plan.result.adds) {
+      const status = await lockedMonth(tx, add.month);
+      if (status) return { ok: false as const, error: `Payroll for ${add.month} is already ${status === "PAID" ? "paid" : "approved"}, so start from a later month.`, status: 409 };
+    }
+
+    await tx.advanceInstallment.deleteMany({ where: { id: { in: plan.result.removes } } });
+    for (const add of plan.result.adds) await tx.advanceInstallment.create({ data: { advanceId, month: add.month, amount: add.amount } });
+    const after = await tx.advance.update({ where: { id: advanceId }, data: { plan: "FIXED_MONTHLY" }, include: { installments: true } });
+    await audit(tx, { entity: "Advance", entityId: advanceId, action: "change-monthly-amount", before: advance, after });
+    const months = new Set([...advance.installments.filter((i) => plan.result.removes.includes(i.id)).map((i) => i.month), ...plan.result.adds.map((a) => a.month)]);
+    for (const month of months) await recomputeDraftLinesForMonth(tx, month, advance.employeeId);
     return { ok: true as const };
   });
 }

@@ -142,3 +142,49 @@ export function advanceBalance(amount: Num, installments: { amount: Num; status:
   const repaid = round2(sum(installments.filter((i) => i.status === "PAID").map((i) => i.amount)));
   return { total, repaid, outstanding: round2(total.minus(repaid)) };
 }
+
+export type Replan = { removes: string[]; adds: PlannedInstallment[]; remaining: Dec };
+
+/**
+ * Changes the monthly repayment for what's still owed on an advance. Every installment still due
+ * (in a month whose payroll isn't approved or paid) is replaced by a new schedule of `perMonth`
+ * from `startMonth`, with a smaller last month. Paid months, skipped months and months already
+ * locked in an approved payroll stay as they are, and new installments go around them.
+ */
+export function replanRemaining(
+  total: Num,
+  schedule: ScheduledInstallment[],
+  lockedMonths: ReadonlySet<string>,
+  perMonth: Num,
+  startMonth?: string,
+): { ok: true; result: Replan } | { ok: false; error: string } {
+  const per = round2(perMonth);
+  if (per.lte(0)) return { ok: false, error: "Enter how much is repaid each month." };
+
+  const replaceable = schedule.filter((i) => i.status === "DUE" && !lockedMonths.has(i.month)).sort((a, b) => a.month.localeCompare(b.month));
+  const kept = schedule.filter((i) => !replaceable.includes(i));
+  const covered = sum(kept.filter((i) => i.status !== "SKIPPED").map((i) => i.amount));
+  const remaining = round2(new D(total).minus(covered));
+  if (remaining.lte(0)) return { ok: false, error: "Nothing is left to repay on this advance." };
+
+  const lastCommitted = kept
+    .filter((i) => i.status !== "SKIPPED")
+    .map((i) => i.month)
+    .sort()
+    .at(-1);
+  const start = startMonth ?? replaceable[0]?.month ?? (lastCommitted ? addMonths(lastCommitted, 1) : null);
+  if (!start) return { ok: false, error: "Choose the first month." };
+  if (lastCommitted && start <= lastCommitted) return { ok: false, error: `The first month must be after ${lastCommitted}, which is already paid or approved.` };
+
+  const keptMonths = new Set(kept.map((i) => i.month));
+  const adds: PlannedInstallment[] = [];
+  let left = remaining;
+  for (let month = start; left.gt(0); month = addMonths(month, 1)) {
+    if (keptMonths.has(month)) continue;
+    if (adds.length === 60) return { ok: false, error: "That would take more than 5 years to repay. Please raise the monthly amount." };
+    const amount = left.lt(per) ? left : per;
+    adds.push({ month, amount });
+    left = left.minus(amount);
+  }
+  return { ok: true, result: { removes: replaceable.map((i) => i.id), adds, remaining } };
+}

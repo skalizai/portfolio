@@ -213,3 +213,58 @@ export function DeleteAdvance({ id, label }: { id: string; label: string }) {
     </div>
   );
 }
+
+/** Changes the monthly repayment for the rest of an advance. The new schedule still repays it in full. */
+export function ChangeMonthlyAmount({ id, label, perMonth, fromMonth }: { id: string; label: string; perMonth: string; fromMonth: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    setBusy(true);
+    const error = await send(`/api/household/advances/${id}`, "PATCH", values);
+    setBusy(false);
+    setMessage(error ?? "");
+    if (!error) {
+      setOpen(false);
+      router.refresh();
+    }
+  }
+
+  if (!open) {
+    return (
+      <Button type="button" variant="ghost" size="sm" className={OUTLINE} onClick={() => setOpen(true)}>
+        Change monthly amount <span className="sr-only">for {label}</span>
+      </Button>
+    );
+  }
+  return (
+    <form onSubmit={submit} className="w-full rounded-xl border border-line p-3">
+      <p className="text-sm text-dim">Every month still due is replaced, so what&apos;s owed is still repaid in full. Paid and approved months don&apos;t change.</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+        <label className="block text-sm">
+          Repaid each month (PKR)
+          <input className={FIELD} name="perMonth" inputMode="decimal" defaultValue={perMonth} required />
+        </label>
+        <label className="block text-sm">
+          Starting from
+          <input className={FIELD} type="month" name="startMonth" defaultValue={fromMonth} required />
+        </label>
+        <Button type="submit" className="h-11" disabled={busy}>
+          Save <span className="sr-only">new monthly amount for {label}</span>
+        </Button>
+        <Button type="button" variant="ghost" className={`h-11 ${OUTLINE}`} onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+      {message && (
+        <p role="status" className="mt-2 text-sm">
+          {message}
+        </p>
+      )}
+    </form>
+  );
+}

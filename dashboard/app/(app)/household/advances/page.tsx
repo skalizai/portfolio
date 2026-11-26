@@ -1,5 +1,5 @@
 import { Download, Search } from "lucide-react";
-import { AdvanceForm, ChangeInstallment, DeleteAdvance } from "@/components/household/AdvanceForms";
+import { AdvanceForm, ChangeInstallment, ChangeMonthlyAmount, DeleteAdvance } from "@/components/household/AdvanceForms";
 import { Button } from "@/components/ui/button";
 import { listAdvances, PLAN_LABELS } from "@/lib/household/advances";
 import { listEmployees } from "@/lib/household/employees";
@@ -106,6 +106,7 @@ export default async function AdvancesPage({ searchParams }: { searchParams: Pro
         <ul className="mt-6 space-y-4">
           {advances.map((a) => {
             const label = `${a.employee.fullName}'s advance of ${formatPkr(a.amount)} on ${dateFormat.format(a.date)}`;
+            const nextDue = a.status === "OPEN" ? a.installments.find((i) => i.status === "DUE") : undefined;
             const repaidShare = a.balance.total.gt(0) ? Number(a.balance.repaid.dividedBy(a.balance.total).times(100).toFixed(0)) : 0;
             return (
               <li key={a.id} className="rounded-[1.5rem] border border-line bg-surface p-5">
@@ -153,11 +154,10 @@ export default async function AdvancesPage({ searchParams }: { searchParams: Pro
                     </li>
                   ))}
                 </ul>
-                {!a.installments.some((i) => i.status === "PAID") && (
-                  <div className="mt-3">
-                    <DeleteAdvance id={a.id} label={label} />
-                  </div>
-                )}
+                <div className="mt-3 flex flex-wrap items-start gap-2">
+                  {nextDue && <ChangeMonthlyAmount id={a.id} label={label} perMonth={nextDue.amount.toFixed(0)} fromMonth={nextDue.month} />}
+                  {!a.installments.some((i) => i.status === "PAID") && <DeleteAdvance id={a.id} label={label} />}
+                </div>
               </li>
             );
           })}
