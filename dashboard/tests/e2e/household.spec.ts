@@ -367,7 +367,8 @@ test.describe.serial("household and family", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Household & Family" }).getByRole("link", { name: /Overview/ })).toContainText(/employees? ·/);
+    await expect(page.getByRole("region", { name: "Household & Family" })).toContainText("Sent home");
+    await expect(page.getByText(/^\d+ people on staff$/)).toBeVisible();
 
     await page.goto("/household/settings");
     page.once("dialog", (dialog) => dialog.accept());

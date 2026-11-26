@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { DASHBOARD_LINKS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-/** Home, plus a Job Dashboard menu holding every section. */
+/** Home, Household & Family, Investments, and a Career menu holding the job search pages. */
 export function MainNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -46,20 +46,20 @@ export function MainNav() {
         </li>
         <li>
           <Link
-            href="/investments"
-            aria-current={pathname.startsWith("/investments") ? "page" : undefined}
-            className={cn(item, pathname.startsWith("/investments") ? "bg-surface-2 text-txt" : "text-dim hover:text-txt")}
-          >
-            Investments
-          </Link>
-        </li>
-        <li>
-          <Link
             href="/household"
             aria-current={pathname.startsWith("/household") ? "page" : undefined}
             className={cn(item, pathname.startsWith("/household") ? "bg-surface-2 text-txt" : "text-dim hover:text-txt")}
           >
             Household & Family
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/investments"
+            aria-current={pathname.startsWith("/investments") ? "page" : undefined}
+            className={cn(item, pathname.startsWith("/investments") ? "bg-surface-2 text-txt" : "text-dim hover:text-txt")}
+          >
+            Investments
           </Link>
         </li>
         <li ref={wrapper} className="relative">
@@ -71,7 +71,7 @@ export function MainNav() {
             className={cn(item, "border", inDashboard ? "border-line-strong bg-surface-2 text-txt" : "border-line text-dim hover:text-txt")}
           >
             <LayoutGrid aria-hidden className="size-4 text-brand" />
-            Job Dashboard
+            Career
             {current && <span className="hidden text-dim sm:inline">· {current.label}</span>}
             <ChevronDown aria-hidden className={cn("size-4 transition-transform", open && "rotate-180")} />
           </button>

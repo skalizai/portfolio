@@ -120,12 +120,3 @@ export async function getOverview(month: string) {
     staff: employees.filter((e) => e.status !== "LEFT").length,
   };
 }
-
-/** One line for the Home page card. */
-export async function householdHomeSummary() {
-  const month = monthOf(new Date());
-  const staff = await db().employee.count({ where: { deletedAt: null, status: { not: "LEFT" } } });
-  const run = await db().payrollRun.findUnique({ where: { month }, select: { status: true } });
-  const payroll = run ? { DRAFT: "in draft", APPROVED: "approved", PAID: "paid" }[run.status] : "not started";
-  return `${staff} ${staff === 1 ? "employee" : "employees"} · this month's payroll ${payroll}`;
-}

@@ -9,8 +9,8 @@ const body = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
 export const metadata: Metadata = {
-  title: "Job Match Dashboard",
-  description: "Private job matching and application tracking.",
+  title: "Sohail · Home",
+  description: "A private dashboard for family, household, investments and the job search.",
   robots: { index: false, follow: false },
 };
 

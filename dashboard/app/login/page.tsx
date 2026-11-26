@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/auth";
 
-export const metadata = { title: "Sign in · Job Dashboard" };
+export const metadata = { title: "Sign in · Sohail · Home" };
 
 const FIELD = "mt-1 h-11 w-full rounded-xl border border-line-strong bg-bg px-3 text-txt";
 

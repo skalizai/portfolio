@@ -1,6 +1,6 @@
 import { ArrowLeftRight, BriefcaseBusiness, FileText, HandCoins, Landmark, LayoutDashboard, PieChart, Receipt, ScrollText, Send, Settings, UserRound, Users, Wallet } from "lucide-react";
 
-/** Every section of the dashboard, used by the Job Dashboard menu and the landing page. */
+/** Every section of the dashboard, used by the Career menu and the Home page. */
 export const DASHBOARD_LINKS = [
   { href: "/matches", label: "Job Matches", icon: BriefcaseBusiness },
   { href: "/applications", label: "Applications", icon: FileText },

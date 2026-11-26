@@ -80,7 +80,7 @@ test.describe.serial("signing in with email and password", () => {
   test("your email and password sign you in, and sign out ends it", async ({ page }) => {
     await submit(page, TEST_ALLOWED_EMAIL.toUpperCase(), TEST_PASSWORD);
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome back");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)/);
 
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);

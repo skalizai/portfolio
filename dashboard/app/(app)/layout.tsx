@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-semibold">
             <span aria-hidden className="bg-gradient-accent size-2.5 rounded-full" />
             <span>
-              Sohail<span className="text-accent-text">/jobs</span>
+              Sohail<span className="text-accent-text">/home</span>
             </span>
           </Link>
           <div className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1">

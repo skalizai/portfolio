@@ -113,3 +113,31 @@
     radial-gradient(60rem 30rem at 85% -10%, var(--glow-1), transparent 60%),
     radial-gradient(40rem 24rem at -10% 110%, var(--glow-2), transparent 60%);
 }
+
+/* Home page sections rise in gently; nothing moves for anyone who prefers reduced motion. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: rotate(3deg) scale(1);
+  }
+  50% {
+    transform: rotate(-3deg) scale(1.05);
+  }
+}
+
+@utility animate-rise {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
