@@ -1,4 +1,5 @@
 import { isValidCronRequest } from "@/lib/access";
+import { createDueRecurring } from "@/lib/household/expenses";
 import { scoreNewJobs } from "@/lib/matching/scoreJobs";
 import { sendDigest } from "@/lib/notify/digest";
 
@@ -12,6 +13,8 @@ export const maxDuration = 300;
 export async function GET(request: Request) {
   if (!isValidCronRequest(request.headers.get("authorization"))) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  // This month's recurring household expenses, such as rent, appear as "to confirm".
+  const recurring = await createDueRecurring().catch(() => -1);
   const scored = await scoreNewJobs();
   let digest: Awaited<ReturnType<typeof sendDigest>> | { status: "failed" };
   try {
@@ -20,5 +23,5 @@ export async function GET(request: Request) {
     // Email errors can include account details, so only the outcome is reported.
     digest = { status: "failed" };
   }
-  return Response.json({ scored: scored.scored, digest: digest.status });
+  return Response.json({ scored: scored.scored, digest: digest.status, recurring });
 }
