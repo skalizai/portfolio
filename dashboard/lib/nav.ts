@@ -1,4 +1,4 @@
-import { ArrowLeftRight, BriefcaseBusiness, FileText, HandCoins, Landmark, LayoutDashboard, PieChart, Receipt, ScrollText, Send, Settings, UserRound, Users, Wallet } from "lucide-react";
+import { ArrowLeftRight, Heart, BriefcaseBusiness, FileText, HandCoins, Landmark, LayoutDashboard, PieChart, Receipt, ScrollText, Send, Settings, UserRound, Users, Wallet } from "lucide-react";
 
 /** Every section of the dashboard, used by the Career menu and the Home page. */
 export const DASHBOARD_LINKS = [
@@ -19,6 +19,7 @@ export const INVESTMENT_LINKS = [
 /** The Household & Family pages, shown as tabs on each of them. */
 export const HOUSEHOLD_LINKS = [
   { href: "/household", label: "Overview", icon: LayoutDashboard },
+  { href: "/household/family", label: "Family", icon: Heart },
   { href: "/household/employees", label: "Employees", icon: Users },
   { href: "/household/advances", label: "Advances", icon: HandCoins },
   { href: "/household/payroll", label: "Payroll", icon: Wallet },

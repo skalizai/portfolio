@@ -15,7 +15,15 @@ async function upload(path: string, form: FormData): Promise<string | null> {
   return body?.error ?? "Couldn't upload that. Please try again.";
 }
 
-export function DocumentUpload({ employeeId }: { employeeId: string }) {
+const EMPLOYEE_TYPES: [string, string][] = [
+  ["CNIC", "CNIC copy"],
+  ["CANTT_PASS", "Cantt Pass copy"],
+  ["CONTRACT", "Contract"],
+  ["OTHER", "Other"],
+];
+
+/** Uploads a document to `action` (an employee's or a family member's documents). */
+export function DocumentUpload({ action, types = EMPLOYEE_TYPES }: { action: string; types?: [string, string][] }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,7 +33,7 @@ export function DocumentUpload({ employeeId }: { employeeId: string }) {
     const form = event.currentTarget;
     setBusy(true);
     setMessage("Uploading…");
-    const error = await upload(`/api/household/employees/${employeeId}/documents`, new FormData(form));
+    const error = await upload(action, new FormData(form));
     setBusy(false);
     setMessage(error ?? "Uploaded.");
     if (!error) {
@@ -38,11 +46,12 @@ export function DocumentUpload({ employeeId }: { employeeId: string }) {
     <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
       <label className="block text-sm">
         Document
-        <select className={FIELD} name="type" required defaultValue="CNIC">
-          <option value="CNIC">CNIC copy</option>
-          <option value="CANTT_PASS">Cantt Pass copy</option>
-          <option value="CONTRACT">Contract</option>
-          <option value="OTHER">Other</option>
+        <select className={FIELD} name="type" required defaultValue={types[0]?.[0]}>
+          {types.map(([value, text]) => (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          ))}
         </select>
       </label>
       <label className="block text-sm">
@@ -63,7 +72,7 @@ export function DocumentUpload({ employeeId }: { employeeId: string }) {
   );
 }
 
-export function DeleteDocument({ id, label }: { id: string; label: string }) {
+export function DeleteDocument({ path, label }: { path: string; label: string }) {
   const router = useRouter();
   return (
     <Button
@@ -73,7 +82,7 @@ export function DeleteDocument({ id, label }: { id: string; label: string }) {
       className={OUTLINE}
       onClick={async () => {
         if (!window.confirm(`Delete ${label}? The file is removed too.`)) return;
-        await fetch(`/api/household/documents/${id}`, { method: "DELETE" }).catch(() => null);
+        await fetch(path, { method: "DELETE" }).catch(() => null);
         router.refresh();
       }}
     >
@@ -82,7 +91,7 @@ export function DeleteDocument({ id, label }: { id: string; label: string }) {
   );
 }
 
-export function PhotoUpload({ employeeId, name }: { employeeId: string; name: string }) {
+export function PhotoUpload({ action, name }: { action: string; name: string }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   return (
@@ -100,7 +109,7 @@ export function PhotoUpload({ employeeId, name }: { employeeId: string; name: st
             const form = new FormData();
             form.set("file", file);
             setMessage("Uploading…");
-            const error = await upload(`/api/household/employees/${employeeId}/photo`, form);
+            const error = await upload(action, form);
             setMessage(error ?? "");
             if (!error) router.refresh();
           }}

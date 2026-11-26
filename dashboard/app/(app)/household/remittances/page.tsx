@@ -4,7 +4,8 @@ import { RecipientForm, RemittanceForm } from "@/components/household/Remittance
 import { RemoveButton } from "@/components/household/RemoveButton";
 import { Button } from "@/components/ui/button";
 import { formatAed, formatPkr, mask, monthOf } from "@/lib/household/money";
-import { EMPTY_RECIPIENT, listRecipients, listRemittances, PURPOSE_LABELS, RELATIONSHIP_LABELS, summarizeRemittances, targetProgress } from "@/lib/household/remittances";
+import { EMPTY_RECIPIENT, groupOf, listRecipients, listRemittances, PURPOSE_LABELS, RELATIONSHIP_LABELS, summarizeRemittances, targetProgress } from "@/lib/household/remittances";
+import { syncLinkedRecipients } from "@/lib/household/linked-recipients";
 import { getHouseholdSettings } from "@/lib/household/settings";
 
 const FIELD = "mt-1 h-11 w-full rounded-xl border border-line-strong bg-bg px-3 text-sm text-txt";
@@ -12,7 +13,7 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "sh
 const monthFormat = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 const monthLabel = (month: string) => monthFormat.format(new Date(`${month}-01T00:00:00Z`));
 
-type Search = { from?: string; to?: string; recipientId?: string; purpose?: string };
+type Search = { from?: string; to?: string; recipientId?: string; purpose?: string; send?: string };
 
 function Breakdown({ title, rows, total }: { title: string; rows: { key: string; name: string; aed: { toString(): string }; pkr: { toString(): string }; count: number }[]; total: number }) {
   return (
@@ -48,8 +49,10 @@ function Breakdown({ title, rows, total }: { title: string; rows: { key: string;
 }
 
 export default async function RemittancesPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const { from = "", to = "", recipientId = "", purpose = "" } = await searchParams;
+  const { from = "", to = "", recipientId = "", purpose = "", send = "" } = await searchParams;
   const settings = await getHouseholdSettings();
+  // Family members and staff added since the last visit show up as recipients.
+  await syncLinkedRecipients();
   const recipients = await listRecipients();
   const rows = await listRemittances({ from, to, recipientId, purpose });
   const thisMonth = monthOf(new Date());
@@ -87,8 +90,8 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
         </h2>
         <div className="mt-4">
           <RemittanceForm
-            recipients={recipients.map((r) => ({ id: r.id, name: r.name }))}
-            initial={{ date: today, recipientId: recipients[0]?.id ?? "", amountAed: "", rate: settings.defaultPkrPerAed.toString(), amountPkr: "", feeAed: "", channel: "", reference: "", purpose: "HOUSEHOLD", notes: "" }}
+            recipients={recipients.map((r) => ({ id: r.id, name: r.name, group: groupOf(r) }))}
+            initial={{ date: today, recipientId: recipients.find((r) => r.id === send)?.id ?? recipients[0]?.id ?? "", amountAed: "", rate: settings.defaultPkrPerAed.toString(), amountPkr: "", feeAed: "", channel: "", reference: "", purpose: "HOUSEHOLD", notes: "" }}
           />
         </div>
       </section>
@@ -238,6 +241,7 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
                 <div className="min-w-0 text-sm">
                   <p className="font-semibold">
                     {r.name} <span className="font-normal text-dim">· {RELATIONSHIP_LABELS[r.relationship]}</span>
+                    {groupOf(r) !== "other" && <span className="ml-2 rounded-full border border-line-strong px-2 py-0.5 text-xs font-normal">{groupOf(r) === "family" ? "Family" : "Staff"}</span>}
                   </p>
                   <p className="text-dim">
                     {[r.city, r.phone, r.account && `Account ${mask(r.account)}`, r.wallet && `Wallet ${mask(r.wallet)}`, r.monthlyTargetAed && `Target ${formatAed(r.monthlyTargetAed)} a month`].filter(Boolean).join(" · ") || "No details yet"}
@@ -247,9 +251,10 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
                   <RecipientForm
                     id={r.id}
                     label={r.name}
+                    linked={r.familyMemberId ? "their Family record" : r.employeeId ? "their employee record" : undefined}
                     initial={{ name: r.name, relationship: r.relationship, phone: r.phone, account: r.account, wallet: r.wallet, city: r.city, notes: r.notes, monthlyTargetAed: r.monthlyTargetAed?.toString() ?? "" }}
                   />
-                  <RemoveButton path={`/api/household/recipients/${r.id}`} label={r.name} question={`Remove ${r.name}? Their past transfers stay in the totals.`} />
+                  {groupOf(r) === "other" && <RemoveButton path={`/api/household/recipients/${r.id}`} label={r.name} question={`Remove ${r.name}? Their past transfers stay in the totals.`} />}
                 </div>
               </div>
             </li>

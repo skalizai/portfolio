@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { audit } from "@/lib/household/audit";
+import { syncLinkedRecipients } from "@/lib/household/linked-recipients";
 
 const money = (label: string) =>
   z
@@ -86,6 +87,7 @@ export async function createEmployee(input: EmployeeInput) {
   return db().$transaction(async (tx) => {
     const employee = await tx.employee.create({ data: { ...fields, allowances: { create: allowances } }, include: { allowances: true } });
     await audit(tx, { entity: "Employee", entityId: employee.id, action: "create", after: employee });
+    await syncLinkedRecipients(tx);
     return employee;
   });
 }
@@ -98,6 +100,7 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
     await tx.employeeAllowance.deleteMany({ where: { employeeId: id } });
     const after = await tx.employee.update({ where: { id }, data: { ...fields, allowances: { create: allowances } }, include: { allowances: true } });
     await audit(tx, { entity: "Employee", entityId: id, action: "update", before, after });
+    await syncLinkedRecipients(tx);
     return after;
   });
 }
@@ -109,6 +112,7 @@ export async function removeEmployee(id: string) {
     if (!before) return false;
     const after = await tx.employee.update({ where: { id }, data: { deletedAt: new Date(), status: "LEFT" } });
     await audit(tx, { entity: "Employee", entityId: id, action: "delete", before, after });
+    await syncLinkedRecipients(tx);
     return true;
   });
 }

@@ -1,10 +1,12 @@
-import { ArrowRight, BriefcaseBusiness, CircleCheck, House, Receipt, Send, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CircleCheck, Plus, House, Receipt, Send, Sparkles, TrendingUp, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Avatar } from "@/components/household/Avatar";
 import { LiveClocks } from "@/components/LiveClocks";
 import { Button } from "@/components/ui/button";
 import { firstNameOf, getHomeData, greeting, HOME_TIME_ZONE, type Attention } from "@/lib/home";
+import { ageOn, FAMILY_RELATIONSHIP_LABELS } from "@/lib/household/family";
 import { formatPkr, type Num } from "@/lib/household/money";
 import { aed, signedAed, tone } from "@/lib/investments/format";
 import { DASHBOARD_LINKS } from "@/lib/nav";
@@ -171,6 +173,45 @@ export default async function HomePage() {
           </p>
         )}
       </section>
+
+      {household && (
+        <section aria-labelledby="family-title" className="animate-rise mt-6 rounded-[2rem] border border-line bg-surface/70 p-5 sm:p-7">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="family-title" className="text-xl font-semibold">
+              Your family
+            </h2>
+            <Link href="/household/family" className="text-sm text-dim hover:text-txt">
+              Passports, CNICs and photos →
+            </Link>
+          </div>
+          <ul className="mt-5 flex gap-5 overflow-x-auto pb-1">
+            {household.family.map((m) => {
+              const age = ageOn(m.dateOfBirth, now);
+              return (
+                <li key={m.id} className="w-24 shrink-0">
+                  <Link href={`/household/family/${m.id}`} className="group flex flex-col items-center text-center">
+                    <Avatar fileId={m.photoFileId} name={m.fullName} className="size-20 rounded-full text-2xl ring-2 ring-line transition group-hover:ring-brand" />
+                    <span className="mt-2 w-full truncate text-sm font-medium">{m.fullName.split(/s+/)[0]}</span>
+                    <span className="text-xs text-dim">
+                      {FAMILY_RELATIONSHIP_LABELS[m.relationship]}
+                      {age !== null ? ` · ${age}` : ""}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+            <li className="w-24 shrink-0">
+              <Link href="/household/family/new" className="group flex flex-col items-center text-center">
+                <span className="flex size-20 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-dim transition group-hover:border-brand group-hover:text-txt">
+                  <Plus aria-hidden className="size-6" />
+                </span>
+                <span className="mt-2 text-sm font-medium">Add</span>
+                <span className="text-xs text-dim">family member</span>
+              </Link>
+            </li>
+          </ul>
+        </section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Area id="home-family" eyebrow="This month" title="Household & Family" icon={<House aria-hidden className="size-5" />} href="/household" cta="Open Household & Family" className="lg:col-span-2 lg:row-span-2">

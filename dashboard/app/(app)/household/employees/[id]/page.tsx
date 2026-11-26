@@ -40,7 +40,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
             {employee.role} · joined {dateFormat.format(employee.joiningDate)}
           </p>
         </div>
-        <PhotoUpload employeeId={employee.id} name={employee.fullName} />
+        <PhotoUpload action={`/api/household/employees/${employee.id}/photo`} name={employee.fullName} />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_20rem]">
@@ -70,7 +70,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
                         <a href={`/api/household/files/${d.fileId}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-2 rounded-md border border-line-strong px-3 text-dim hover:text-txt">
                           <Eye aria-hidden className="size-4" /> View <span className="sr-only">{label} (opens in a new tab)</span>
                         </a>
-                        <DeleteDocument id={d.id} label={label} />
+                        <DeleteDocument path={`/api/household/documents/${d.id}`} label={label} />
                       </div>
                     </li>
                   );
@@ -89,7 +89,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
         </h2>
         <p className="mt-1 text-sm text-dim">CNIC copy, Cantt Pass copy, contract and so on. Only you can open them.</p>
         <div className="mt-3">
-          <DocumentUpload employeeId={employee.id} />
+          <DocumentUpload action={`/api/household/employees/${employee.id}/documents`} />
         </div>
       </section>
 

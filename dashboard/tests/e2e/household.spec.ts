@@ -28,7 +28,7 @@ test.describe.serial("household and family", () => {
     await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Household & Family" }).click();
     await expect(page).toHaveURL(/\/household$/);
     const tabs = page.getByRole("navigation", { name: "Household & Family" });
-    for (const name of ["Overview", "Employees", "Advances", "Payroll", "Payslips", "Remittances", "Expenses", "Settings"]) {
+    for (const name of ["Overview", "Family", "Employees", "Advances", "Payroll", "Payslips", "Remittances", "Expenses", "Settings"]) {
       await expect(tabs.getByRole("link", { name })).toBeVisible();
     }
     await expect(tabs.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
@@ -376,5 +376,53 @@ test.describe.serial("household and family", () => {
     await expect(page.getByRole("status").filter({ hasText: "Demo data" })).toHaveText("Demo data cleared.");
     await page.goto("/household/employees");
     await expect(page.getByText("Aslam Khan (demo)")).toHaveCount(0);
+  });
+
+  test("family members are added with photos and documents, and appear when sending money", async ({ page, context }) => {
+    await page.setViewportSize({ width: 380, height: 900 });
+    await page.goto("/household/family");
+    await page.getByRole("navigation", { name: "Add someone" }).getByRole("link", { name: "Add your wife" }).click();
+    await expect(page.getByLabel("Relationship")).toHaveValue("WIFE");
+    await page.getByLabel("Full name").fill("Sana Alizai");
+    await page.getByLabel("Date of birth").fill("1990-05-14");
+    await page.getByLabel("CNIC number").fill("3520212345671");
+    await page.getByLabel("Passport number").fill("ab1234567");
+    const soon = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
+    await page.getByLabel("Passport expiry").fill(soon);
+    await page.getByRole("button", { name: "Add to family" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Sana Alizai" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Documents to renew" })).toContainText("Sana Alizai's passport expires in 40 days");
+
+    // A 1×1 PNG as her photo, then a copy of her passport.
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
+    await page.getByText(/Change photo/).locator("input[type=file]").setInputFiles({ name: "sana.png", mimeType: "image/png", buffer: png });
+    await expect(page.getByRole("img", { name: "Photo of Sana Alizai" })).toBeVisible();
+    const upload = page.getByRole("region", { name: "Upload a document" });
+    await upload.getByLabel("Document").selectOption("PASSPORT");
+    await upload.getByLabel(/^File/).setInputFiles({ name: "passport.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF\n") });
+    await upload.getByRole("button", { name: "Upload" }).click();
+    await expect(page.getByRole("region", { name: /^Documents/ })).toContainText("passport.pdf");
+    await noA11yIssues(page);
+
+    await page.goto("/household/family");
+    const card = page.getByRole("list", { name: "Family members" }).getByRole("listitem").filter({ hasText: "Sana Alizai" });
+    await expect(card).toContainText("•••• 4567");
+    await expect(card).not.toContainText("AB1234567");
+    await expect(page.getByRole("region", { name: "Documents to renew" })).toContainText("passport");
+    await noA11yIssues(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    const xlsx = await context.request.get("/api/household/family/export");
+    expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
+
+    // She took over the Wife recipient, and Send money opens the transfer form with her chosen.
+    await card.click();
+    await page.getByRole("link", { name: "Send money" }).click();
+    const sentTo = page.getByRole("region", { name: "Record a transfer" }).getByLabel("Sent to");
+    await expect(sentTo.locator("option:checked")).toHaveText("Sana Alizai");
+    await expect(sentTo.locator('optgroup[label="Family"] option')).toContainText(["Sana Alizai"]);
+    await expect(page.getByRole("region", { name: "Recipients" })).not.toContainText("Wife ·");
+
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Your family" })).toContainText("Sana");
   });
 });

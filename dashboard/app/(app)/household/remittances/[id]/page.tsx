@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RemittanceForm } from "@/components/household/RemittanceForms";
 import { db } from "@/lib/db";
-import { listRecipients } from "@/lib/household/remittances";
+import { groupOf, listRecipients } from "@/lib/household/remittances";
 
 export default async function EditRemittancePage({ params }: { params: Promise<{ id: string }> }) {
   const r = await db().remittance.findFirst({ where: { id: (await params).id, deletedAt: null }, include: { recipient: true } });
@@ -21,7 +21,7 @@ export default async function EditRemittancePage({ params }: { params: Promise<{
       <div className="mt-6 rounded-[1.5rem] border border-line bg-surface p-5">
         <RemittanceForm
           id={r.id}
-          recipients={options.map((x) => ({ id: x.id, name: x.name }))}
+          recipients={options.map((x) => ({ id: x.id, name: x.name, group: groupOf(x) }))}
           initial={{
             date: r.date.toISOString().slice(0, 10),
             recipientId: r.recipientId,

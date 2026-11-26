@@ -1,5 +1,6 @@
 import { budgetStatus, listCategories, listExpenses } from "@/lib/household/expenses";
 import type { ExpiryAlert } from "@/lib/household/employees";
+import { daysToBirthday, familyExpiries, listFamily, whenText, type FamilyExpiry } from "@/lib/household/family";
 import { formatAed, monthOf, type Dec } from "@/lib/household/money";
 import { getOverview } from "@/lib/household/overview";
 import { listRecipients, listRemittances, targetProgress } from "@/lib/household/remittances";
@@ -50,8 +51,16 @@ export function attentionItems(input: {
   pendingExpenses: number;
   targets: { name: string; share: number; target: Dec; sent: Dec }[];
   coverLetters: number;
+  familyExpiries?: FamilyExpiry[];
+  birthdays?: { memberId: string; name: string; days: number }[];
 }): Attention[] {
   const items: Attention[] = [];
+  for (const b of input.birthdays ?? []) {
+    items.push({ key: `birthday-${b.memberId}`, tone: b.days === 0 ? "urgent" : "info", text: b.days === 0 ? `It's ${b.name}'s birthday today` : `${b.name}'s birthday is in ${b.days} ${b.days === 1 ? "day" : "days"}`, href: `/household/family/${b.memberId}` });
+  }
+  for (const e of input.familyExpiries ?? []) {
+    items.push({ key: `family-${e.memberId}-${e.document}`, tone: e.daysLeft <= 30 ? "urgent" : "soon", text: `${e.name} ${e.document} ${whenText(e.daysLeft)}`, href: `/household/family/${e.memberId}` });
+  }
   for (const e of input.expiries.slice(0, 3)) {
     const when = e.daysLeft < 0 ? `expired ${-e.daysLeft} ${-e.daysLeft === 1 ? "day" : "days"} ago` : e.daysLeft === 0 ? "expires today" : `expires in ${e.daysLeft} ${e.daysLeft === 1 ? "day" : "days"}`;
     items.push({ key: `expiry-${e.employeeId}-${e.document}`, tone: e.daysLeft <= 7 ? "urgent" : "soon", text: `${e.employeeName}'s ${e.document} ${when}`, href: `/household/employees/${e.employeeId}` });
@@ -98,7 +107,7 @@ async function investmentsSummary() {
 
 async function householdSummary(today: Date) {
   const month = monthOf(today);
-  const [overview, settings, categories, monthExpenses, recipients, monthTransfers, pendingExpenses] = await Promise.all([
+  const [overview, settings, categories, monthExpenses, recipients, monthTransfers, pendingExpenses, family] = await Promise.all([
     getOverview(month),
     getHouseholdSettings(),
     listCategories(),
@@ -106,6 +115,7 @@ async function householdSummary(today: Date) {
     listRecipients(),
     listRemittances({ from: `${month}-01`, to: today.toISOString().slice(0, 10) }),
     db().expense.count({ where: { deletedAt: null, status: "PENDING" } }),
+    listFamily(),
   ]);
   return {
     month,
@@ -114,6 +124,12 @@ async function householdSummary(today: Date) {
     budgets: budgetStatus(categories, monthExpenses),
     targets: targetProgress(recipients, monthTransfers, month),
     pendingExpenses,
+    family,
+    familyExpiries: familyExpiries(family, settings.expiryAlertDays, today),
+    birthdays: family
+      .filter((m) => m.relationship !== "SELF")
+      .map((m) => ({ memberId: m.id, name: m.fullName, days: daysToBirthday(m.dateOfBirth, today) }))
+      .filter((b): b is { memberId: string; name: string; days: number } => b.days !== null && b.days <= 7),
   };
 }
 
@@ -143,6 +159,8 @@ export async function getHomeData(now = new Date()) {
         pendingExpenses: household.pendingExpenses,
         targets: household.targets,
         coverLetters: career?.coverLetters ?? 0,
+        familyExpiries: household.familyExpiries,
+        birthdays: household.birthdays,
       })
     : [];
 

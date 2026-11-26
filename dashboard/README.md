@@ -13,17 +13,19 @@ npm run db:deploy       # apply migrations to the database in DATABASE_URL
 
 ## Household & Family
 
-Household staff in Pakistan, their pay and advances, money sent home, and other household spending.
+Your family and their documents, household staff in Pakistan, their pay and advances, money sent home,
+and other household spending.
 Open it from **Household & Family** in the top bar.
 
 | Tab | What it does |
 | --- | --- |
 | Overview | Choose a month: payroll paid, advances outstanding, money sent home (and to your wife), expenses and total outflow, for the month and the year to date. A six-month outflow chart, shares by recipient, purpose and category, document expiries, open advances, the month's payroll and recent transfers. |
+| Family | You, your wife, children and other family: photo, date of birth, blood group, CNIC or B-Form, passport, and Emirates ID and visa for anyone in the UAE, with copies of documents. Passports are flagged six months before they expire; birthdays in the coming week show on Home. Lists show only the last 4 characters of numbers. |
 | Employees | Staff records: CNIC and Cantt Pass with expiry dates, pay in PKR with allowances, cash or bank transfer, documents and a photo. Lists show only the last 4 characters of CNICs and IBANs. |
 | Advances | Advances repaid in one go, at a fixed amount a month, or on a custom schedule. Change or skip one month, or change the monthly amount for the rest; what's owed is always repaid in full. |
 | Payroll | One run a month: prepared from active staff with that month's advance repayment, then edited (overtime, Eid gift, unpaid days at basic ÷ 30), approved, and marked paid. Reopening needs a reason. |
 | Payslips | Frozen when payroll is paid. View and print, download as PDF, or all of a month as a ZIP. |
-| Remittances | Transfers home in AED, with the rate, the PKR received (worked out, or as entered), fee, channel, purpose and receipt. Totals by recipient, purpose and month, the average rate, and optional monthly targets. |
+| Remittances | Transfers home in AED to your family, your staff or anyone else you add, with the rate, the PKR received (worked out, or as entered), fee, channel, purpose and receipt. Totals by recipient, purpose and month, the average rate, and optional monthly targets. |
 | Expenses | Spending in AED or PKR (converted to AED). Category budgets warn at 80% and when passed. Monthly expenses such as rent appear on their day as "to confirm". |
 | Settings | Household name and address for payslips, the default PKR per AED rate, payroll day, expiry alert window, and demo data. |
 
@@ -34,6 +36,12 @@ shown in AED on the Overview at the default rate from Settings.
 **Records.** Every change to employees, advances, payroll, transfers and expenses is written to an
 audit log with before and after values. Deleting hides a record but keeps it. Every list exports to
 Excel (.xlsx).
+
+**Family and staff as recipients.** Each family member (except you) and each employee is a recipient
+for transfers, listed under Family and Staff in "Sent to", and named as in their record. Removing
+someone, or an employee leaving, hides them there; what was sent to them stays. The first time your wife,
+mother or father is added, an existing recipient with that relationship (such as the built-in "Wife")
+becomes theirs, so earlier transfers stay with them.
 
 **Files.** Documents and receipts are PDFs or JPEG, PNG or WebP images up to 5 MB. They're kept in
 the database and served only to a signed-in session.

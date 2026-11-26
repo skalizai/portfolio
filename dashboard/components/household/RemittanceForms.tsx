@@ -17,6 +17,7 @@ const PURPOSES = [
 ] as const;
 const RELATIONSHIPS = [
   ["WIFE", "Wife"],
+  ["CHILD", "Son or daughter"],
   ["MOTHER", "Mother"],
   ["FATHER", "Father"],
   ["SIBLING", "Brother or sister"],
@@ -39,7 +40,30 @@ export type RemittanceValues = {
 const pkr = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 2, minimumFractionDigits: 0 });
 
 /** Records or edits a transfer. PKR received is worked out from the rate unless you type what arrived. */
-export function RemittanceForm({ recipients, initial, id }: { recipients: { id: string; name: string }[]; initial: RemittanceValues; id?: string }) {
+type RecipientOption = { id: string; name: string; group?: "family" | "staff" | "other" };
+const GROUP_LABELS = { family: "Family", staff: "Staff", other: "Others" } as const;
+
+/** The recipients, under Family, Staff and Others when there's more than one kind. */
+function RecipientOptions({ recipients }: { recipients: RecipientOption[] }) {
+  const groups = (["family", "staff", "other"] as const).map((g) => [g, recipients.filter((r) => (r.group ?? "other") === g)] as const).filter(([, rows]) => rows.length);
+  const option = (r: RecipientOption) => (
+    <option key={r.id} value={r.id}>
+      {r.name}
+    </option>
+  );
+  if (groups.length < 2) return <>{recipients.map(option)}</>;
+  return (
+    <>
+      {groups.map(([g, rows]) => (
+        <optgroup key={g} label={GROUP_LABELS[g]}>
+          {rows.map(option)}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
+export function RemittanceForm({ recipients, initial, id }: { recipients: RecipientOption[]; initial: RemittanceValues; id?: string }) {
   const router = useRouter();
   const [aed, setAed] = useState(initial.amountAed);
   const [rate, setRate] = useState(initial.rate);
@@ -85,11 +109,7 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: { id: 
         <label className="block text-sm">
           Sent to
           <select className={FIELD} name="recipientId" required defaultValue={initial.recipientId}>
-            {recipients.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
+            <RecipientOptions recipients={recipients} />
           </select>
         </label>
         <label className="block text-sm">
@@ -153,7 +173,7 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: { id: 
 export type RecipientValues = { name: string; relationship: string; phone: string; account: string; wallet: string; city: string; notes: string; monthlyTargetAed: string };
 
 /** Adds a recipient, or edits one when `id` is given (shown behind an Edit button). */
-export function RecipientForm({ id, initial, label }: { id?: string; initial: RecipientValues; label?: string }) {
+export function RecipientForm({ id, initial, label, linked }: { id?: string; initial: RecipientValues; label?: string; linked?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(!id);
   const [message, setMessage] = useState("");
@@ -188,20 +208,31 @@ export function RecipientForm({ id, initial, label }: { id?: string; initial: Re
   return (
     <form onSubmit={submit} className="w-full space-y-3">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="block text-sm">
-          Name
-          <input className={FIELD} name="name" required maxLength={120} defaultValue={initial.name} />
-        </label>
-        <label className="block text-sm">
-          Relationship
-          <select className={FIELD} name="relationship" defaultValue={initial.relationship}>
-            {RELATIONSHIPS.map(([value, text]) => (
-              <option key={value} value={value}>
-                {text}
-              </option>
-            ))}
-          </select>
-        </label>
+        {linked ? (
+          // The name and relationship come from the family or staff record.
+          <p className="text-sm text-dim sm:col-span-2">
+            Name and relationship are kept in step with {linked}.
+            <input type="hidden" name="name" value={initial.name} />
+            <input type="hidden" name="relationship" value="OTHER" />
+          </p>
+        ) : (
+          <>
+            <label className="block text-sm">
+              Name
+              <input className={FIELD} name="name" required maxLength={120} defaultValue={initial.name} />
+            </label>
+            <label className="block text-sm">
+              Relationship
+              <select className={FIELD} name="relationship" defaultValue={initial.relationship}>
+                {RELATIONSHIPS.map(([value, text]) => (
+                  <option key={value} value={value}>
+                    {text}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
         <label className="block text-sm">
           Monthly target (AED, optional)
           <input className={FIELD} name="monthlyTargetAed" inputMode="decimal" defaultValue={initial.monthlyTargetAed} />

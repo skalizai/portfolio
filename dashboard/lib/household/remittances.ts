@@ -5,7 +5,7 @@ import { achievedRate, D, type Dec, monthOf, type Num, pkrFromAed, round2, sum, 
 
 /** Money sent home: each transfer is in AED, with the rate and the PKR that arrived. */
 
-export const RELATIONSHIP_LABELS = { WIFE: "Wife", MOTHER: "Mother", FATHER: "Father", SIBLING: "Brother or sister", OTHER: "Other" } as const;
+export const RELATIONSHIP_LABELS = { WIFE: "Wife", CHILD: "Son or daughter", MOTHER: "Mother", FATHER: "Father", SIBLING: "Brother or sister", EMPLOYEE: "Staff", OTHER: "Other" } as const;
 export const PURPOSE_LABELS = { HOUSEHOLD: "Household", SCHOOL_FEES: "School fees", MEDICAL: "Medical", CONSTRUCTION: "Construction", SAVINGS: "Savings", OTHER: "Other" } as const;
 export type Purpose = keyof typeof PURPOSE_LABELS;
 
@@ -19,7 +19,7 @@ const text = (max: number) => z.string().trim().max(max).default("");
 
 export const RecipientInputSchema = z.object({
   name: z.string().trim().min(1, "Enter the recipient's name").max(120),
-  relationship: z.enum(["WIFE", "MOTHER", "FATHER", "SIBLING", "OTHER"]).default("OTHER"),
+  relationship: z.enum(["WIFE", "CHILD", "MOTHER", "FATHER", "SIBLING", "OTHER"]).default("OTHER"),
   phone: text(40),
   account: text(80),
   wallet: text(80),
@@ -70,8 +70,15 @@ function remittanceData(input: RemittanceInput) {
 
 // ---------- Recipients ----------
 
+export type RecipientGroup = "family" | "staff" | "other";
+export const groupOf = (r: { familyMemberId: string | null; employeeId: string | null }): RecipientGroup => (r.familyMemberId ? "family" : r.employeeId ? "staff" : "other");
+const GROUP_ORDER: RecipientGroup[] = ["family", "staff", "other"];
+const RELATION_ORDER = ["WIFE", "CHILD", "MOTHER", "FATHER", "SIBLING", "OTHER", "EMPLOYEE"];
+
+/** Family first (your wife at the top), then staff, then anyone else, each in the order added. */
 export async function listRecipients() {
-  return db().recipient.findMany({ where: { deletedAt: null }, orderBy: [{ createdAt: "asc" }] });
+  const rows = await db().recipient.findMany({ where: { deletedAt: null }, orderBy: [{ createdAt: "asc" }] });
+  return rows.sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || RELATION_ORDER.indexOf(a.relationship) - RELATION_ORDER.indexOf(b.relationship));
 }
 
 const recipientData = (input: RecipientInput) => ({ ...input, monthlyTargetAed: input.monthlyTargetAed ? round2(input.monthlyTargetAed) : null });
@@ -85,7 +92,9 @@ export async function createRecipient(input: RecipientInput) {
 export async function updateRecipient(id: string, input: RecipientInput): Promise<{ ok: true } | Fail> {
   const before = await db().recipient.findFirst({ where: { id, deletedAt: null } });
   if (!before) return { ok: false, error: "That recipient doesn't exist.", status: 404 };
-  const after = await db().recipient.update({ where: { id }, data: recipientData(input) });
+  // Family and staff keep the name and relationship from their own record.
+  const linked = before.familyMemberId || before.employeeId ? { name: before.name, relationship: before.relationship } : {};
+  const after = await db().recipient.update({ where: { id }, data: { ...recipientData(input), ...linked } });
   await audit(db(), { entity: "Recipient", entityId: id, action: "update", before, after });
   return { ok: true };
 }
@@ -94,6 +103,8 @@ export async function updateRecipient(id: string, input: RecipientInput): Promis
 export async function removeRecipient(id: string): Promise<{ ok: true } | Fail> {
   const before = await db().recipient.findFirst({ where: { id, deletedAt: null } });
   if (!before) return { ok: false, error: "That recipient doesn't exist.", status: 404 };
+  if (before.familyMemberId) return { ok: false, error: `${before.name} is in your family list. Remove them there instead.`, status: 409 };
+  if (before.employeeId) return { ok: false, error: `${before.name} is one of your staff. They're removed from here when they leave.`, status: 409 };
   const after = await db().recipient.update({ where: { id }, data: { deletedAt: new Date() } });
   await audit(db(), { entity: "Recipient", entityId: id, action: "delete", before, after });
   return { ok: true };

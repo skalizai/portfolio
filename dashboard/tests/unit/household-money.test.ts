@@ -38,6 +38,8 @@ beforeEach(async () => {
     'TRUNCATE "household"."Payslip", "household"."PayrollLine", "household"."PayrollRun", "household"."AdvanceInstallment", "household"."Advance", "household"."EmployeeAllowance", "household"."Employee", "household"."Remittance", "household"."Expense", "household"."RecurringExpense", "household"."HouseholdAuditLog" CASCADE',
   );
   await pg.exec(`DELETE FROM "household"."Recipient" WHERE id <> 'recipient-wife'`);
+  // Emptying Employee cascades to the recipients linked to staff, so the built-in one is put back.
+  await pg.exec(`INSERT INTO "household"."Recipient" ("id", "name", "relationship") VALUES ('recipient-wife', 'Wife', 'WIFE') ON CONFLICT DO NOTHING`);
   await pg.exec(`UPDATE "household"."ExpenseCategory" SET "monthlyBudgetAed" = NULL`);
 });
 
