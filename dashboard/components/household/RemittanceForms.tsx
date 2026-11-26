@@ -62,12 +62,14 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: { id: 
     }
     if (id) {
       router.push("/household/remittances");
+      router.refresh();
       return;
     }
     setMessage("Transfer recorded.");
     form.reset();
     setAed("");
     setReceived("");
+    setRate(initial.rate);
     router.refresh();
   }
 
@@ -92,15 +94,15 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: { id: 
         </label>
         <label className="block text-sm">
           Sent (AED)
-          <input className={FIELD} name="amountAed" inputMode="decimal" required placeholder="e.g. 2000" value={aed} onChange={(e) => setAed(e.target.value)} />
+          <input className={FIELD} name="amountAed" inputMode="decimal" required placeholder="e.g. 2000" defaultValue={initial.amountAed} onChange={(e) => setAed(e.target.value)} />
         </label>
         <label className="block text-sm">
           Rate (PKR per 1 AED)
-          <input className={FIELD} name="rate" inputMode="decimal" required value={rate} onChange={(e) => setRate(e.target.value)} />
+          <input className={FIELD} name="rate" inputMode="decimal" required defaultValue={initial.rate} onChange={(e) => setRate(e.target.value)} />
         </label>
         <label className="block text-sm">
           Received (PKR)
-          <input className={FIELD} name="amountPkr" inputMode="decimal" placeholder={worked ? String(worked) : "Worked out from the rate"} value={received} onChange={(e) => setReceived(e.target.value)} aria-describedby="pkr-hint" />
+          <input className={FIELD} name="amountPkr" inputMode="decimal" placeholder={worked ? String(worked) : "Worked out from the rate"} defaultValue={initial.amountPkr} onChange={(e) => setReceived(e.target.value)} aria-describedby="pkr-hint" />
           <span id="pkr-hint" className="mt-1 block text-xs text-dim">
             {received ? "As entered." : worked ? `${pkr.format(worked)} at this rate. Type a figure if a different amount arrived.` : "Worked out from the rate."}
           </span>

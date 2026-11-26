@@ -41,6 +41,7 @@ export function ExpenseForm({ categories, initial, id }: { categories: Category[
     }
     if (id) {
       router.push("/household/expenses");
+      router.refresh();
       return;
     }
     setMessage("Expense added.");

@@ -118,7 +118,7 @@ test.describe.serial("household and family", () => {
     await page.getByLabel("Household or employer name").fill("Alizai Household");
     await page.getByLabel("Default rate (PKR per 1 AED)").fill("76.4");
     await page.getByRole("button", { name: "Save settings" }).click();
-    await expect(page.getByRole("status")).toHaveText("Settings saved.");
+    await expect(page.getByRole("status").first()).toHaveText("Settings saved.");
     await page.reload();
     await expect(page.getByLabel("Household or employer name")).toHaveValue("Alizai Household");
     await expect(page.getByLabel("Default rate (PKR per 1 AED)")).toHaveValue("76.4");
@@ -150,7 +150,7 @@ test.describe.serial("household and family", () => {
     await expect(form.getByRole("status")).toHaveText("Advance recorded.");
     const advance = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: /Aslam Khan · Rs 15,000/ }) });
     await expect(advance).toContainText("Outstanding");
-    await expect(advance.getByRole("button", { name: /^Change/ })).toHaveCount(3);
+    await expect(advance.getByRole("button", { name: /^Change .* repayment for/ })).toHaveCount(3);
     await noA11yIssues(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 
@@ -244,11 +244,136 @@ test.describe.serial("household and family", () => {
     // Skipping the next month's repayment moves it to a new month at the end.
     await page.goto("/household/advances");
     const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: /Aslam Khan · Rs 15,000/ }) });
-    await card.getByRole("button", { name: /^Change/ }).nth(1).click();
+    await card.getByRole("button", { name: /^Change .* repayment for/ }).nth(1).click();
     await card.getByLabel("Amount (0 skips)").fill("0");
     await card.getByLabel("Note").fill("Eid month");
     await card.getByRole("button", { name: /^Save/ }).click();
     await expect(card).toContainText("Skipped · Eid month");
-    await expect(card.getByRole("button", { name: /^Change/ })).toHaveCount(3);
+    await expect(card.getByRole("button", { name: /^Change .* repayment for/ })).toHaveCount(3);
+
+    // Changing the monthly amount re-plans what's due around the skipped month, still repaying 15,000.
+    await card.getByRole("button", { name: /Change monthly amount/ }).click();
+    await card.getByLabel("Repaid each month (PKR)").fill("7500");
+    await card.getByLabel("Starting from").fill(month);
+    await card.getByRole("button", { name: /^Save new monthly amount/ }).click();
+    await expect(card.getByRole("button", { name: /^Change .* repayment for/ })).toHaveCount(2);
+    await expect(card.getByText(/Rs\s7,500 · Due/)).toHaveCount(2);
+    await expect(card).toContainText("Skipped · Eid month");
+    await page.goto(`/household/payroll/${month}`);
+    await expect(page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Aslam Khan" }) })).toContainText("Rs 35,100");
+  });
+
+  test("money sent home is recorded at a rate, totalled against a target, edited, exported and removed", async ({ page, context }) => {
+    await page.setViewportSize({ width: 380, height: 900 });
+    await page.goto("/household/remittances");
+    await expect(page.getByText("No transfers yet.")).toBeVisible();
+
+    const recipients = page.getByRole("region", { name: "Recipients" });
+    await expect(recipients).toContainText("Wife");
+    await recipients.getByLabel("Name").last().fill("Mother");
+    await recipients.getByLabel("Relationship").last().selectOption("MOTHER");
+    await recipients.getByLabel("Monthly target (AED, optional)").last().fill("1000");
+    await recipients.getByRole("button", { name: "Add recipient" }).click();
+    await expect(recipients).toContainText("Target AED");
+
+    const form = page.getByRole("region", { name: "Record a transfer" });
+    await form.getByLabel("Sent to").selectOption({ label: "Mother" });
+    await form.getByLabel("Sent (AED)").fill("500");
+    await form.getByLabel("Rate (PKR per 1 AED)").fill("76.25");
+    await expect(form.getByText(/38,125 at this rate/)).toBeVisible();
+    await form.getByLabel("Fee (AED)").fill("10");
+    await form.getByLabel("Purpose").selectOption("MEDICAL");
+    await form.getByRole("button", { name: "Record transfer" }).click();
+    await expect(form.getByRole("status")).toHaveText("Transfer recorded.");
+
+    await expect(page.getByRole("region", { name: /Monthly targets/ }).getByRole("progressbar", { name: /Mother: 50%/ })).toBeVisible();
+    const row = page.getByRole("listitem").filter({ hasText: "Mother ·" }).filter({ hasText: "Medical" });
+    await expect(row).toContainText(/38,125/);
+    await expect(page.getByText("Average rate", { exact: true })).toBeVisible();
+    await noA11yIssues(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+
+    // What actually arrived can be entered instead of the worked-out figure.
+    await row.getByRole("link", { name: /^Edit/ }).click();
+    await expect(page.getByRole("heading", { name: "Edit transfer" })).toBeVisible();
+    await page.getByLabel("Received (PKR)").fill("38000");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page).toHaveURL(/\/household\/remittances$/);
+    await expect(page.getByRole("listitem").filter({ hasText: "Mother ·" }).filter({ hasText: "Medical" })).toContainText(/38,000/);
+
+    const xlsx = await context.request.get("/api/household/remittances/export");
+    expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
+    expect((await context.request.post("/api/household/remittances", { multipart: { date: "2026-11-01", recipientId: "recipient-wife", amountAed: "0", rate: "76" } })).status()).toBe(400);
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("listitem").filter({ hasText: "Mother ·" }).filter({ hasText: "Medical" }).getByRole("button", { name: /^Remove/ }).click();
+    await expect(page.getByText("No transfers yet.")).toBeVisible();
+  });
+
+  test("expenses in PKR are converted, budgets alert, and monthly expenses arrive to confirm", async ({ page, context }) => {
+    await page.setViewportSize({ width: 380, height: 900 });
+    await page.goto("/household/expenses");
+
+    await page.getByText("Categories and budgets").click();
+    await page.getByLabel("Monthly budget for Groceries in AED").fill("100");
+    await page.getByRole("button", { name: "Save Groceries" }).click();
+
+    const form = page.getByRole("region", { name: "Add an expense" });
+    await form.getByLabel("Category").selectOption({ label: "Groceries" });
+    await form.getByLabel("Amount").fill("150");
+    await form.getByRole("button", { name: "Add expense" }).click();
+    await expect(form.getByRole("status")).toHaveText("Expense added.");
+    await expect(page.getByRole("region", { name: /budget needs attention/ })).toContainText("Groceries: over budget");
+
+    await form.getByLabel("Category").selectOption({ label: "Medical" });
+    await form.getByLabel("Amount").fill("7625");
+    await form.getByLabel("Currency").selectOption("PKR");
+    await form.getByLabel("Rate (PKR per 1 AED)").fill("76.25");
+    await form.getByRole("button", { name: "Add expense" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Medical ·" })).toContainText(/≈ AED\s100\.00/);
+
+    const monthly = page.getByRole("region", { name: "Monthly expenses" });
+    await monthly.getByLabel("Name").fill("Rent");
+    await monthly.getByLabel("Category").selectOption({ label: "Rent" });
+    await monthly.getByLabel("Amount").fill("6000");
+    await monthly.getByLabel("Day of the month").fill("1");
+    await monthly.getByRole("button", { name: "Add monthly expense" }).click();
+    await expect(monthly).toContainText("Rent · Rent");
+    const rent = page.getByRole("listitem").filter({ hasText: "Rent ·" }).filter({ hasText: "monthly" });
+    await expect(rent).toContainText("To confirm");
+    await rent.getByRole("button", { name: /^Confirm/ }).click();
+    await expect(rent).toContainText("Confirmed");
+    await page.reload();
+    await expect(page.getByRole("listitem").filter({ hasText: "Rent ·" }).filter({ hasText: "monthly" })).toHaveCount(1);
+    await noA11yIssues(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+
+    const xlsx = await context.request.get("/api/household/expenses/export");
+    expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
+  });
+
+  test("demo data loads, fills the overview and home card, and clears", async ({ page }) => {
+    await page.goto("/household/settings");
+    await page.getByRole("button", { name: "Load demo data" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Demo data" })).toHaveText("Demo data loaded.");
+
+    await page.goto("/household");
+    await expect(page.getByText("Payroll paid", { exact: true })).toBeVisible();
+    await expect(page.getByText("Monthly outflow, last 6 months")).toBeVisible();
+    await expect(page.getByRole("figure", { name: /Sent home by recipient/ })).toContainText("Mother (demo)");
+    await expect(page.getByRole("region", { name: "Open advances" })).toContainText("Aslam Khan (demo)");
+    await noA11yIssues(page);
+    await page.setViewportSize({ width: 380, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Household & Family" }).getByRole("link", { name: /Overview/ })).toContainText(/employees? ·/);
+
+    await page.goto("/household/settings");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Clear demo data" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Demo data" })).toHaveText("Demo data cleared.");
+    await page.goto("/household/employees");
+    await expect(page.getByText("Aslam Khan (demo)")).toHaveCount(0);
   });
 });
