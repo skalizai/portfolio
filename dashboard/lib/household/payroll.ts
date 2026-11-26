@@ -99,15 +99,16 @@ async function addEmployeeLine(tx: Tx, runId: string, employee: { id: string; ba
  * Starts a month's payroll with every active employee (and anyone on leave), at their current basic
  * and allowances, with that month's advance repayments already deducted. One run per month.
  */
-export async function prepareRun(month: string): Promise<Result<{ id: string }>> {
+/** Starts a month's payroll for everyone active or on leave. `demo` limits it to the demo staff. */
+export async function prepareRun(month: string, options: { demo?: boolean } = {}): Promise<Result<{ id: string }>> {
   if (!isMonth(month)) return { ok: false, error: "Choose a month.", status: 400 };
   const existing = await db().payrollRun.findUnique({ where: { month }, select: { id: true } });
   if (existing) return { ok: false, error: `Payroll for ${month} already exists. Open it to make changes.`, status: 409 };
 
   try {
     return await db().$transaction(async (tx) => {
-      const run = await tx.payrollRun.create({ data: { month } });
-      const employees = await tx.employee.findMany({ where: { deletedAt: null, status: { in: ["ACTIVE", "ON_LEAVE"] } }, include: { allowances: true }, orderBy: { fullName: "asc" } });
+      const run = await tx.payrollRun.create({ data: { month, isDemo: options.demo ?? false } });
+      const employees = await tx.employee.findMany({ where: { deletedAt: null, status: { in: ["ACTIVE", "ON_LEAVE"] }, ...(options.demo ? { isDemo: true } : {}) }, include: { allowances: true }, orderBy: { fullName: "asc" } });
       for (const employee of employees) await addEmployeeLine(tx, run.id, employee);
       await recomputeTotals(tx, run.id);
       await audit(tx, { entity: "PayrollRun", entityId: run.id, action: "create", after: { month, employees: employees.length } });
