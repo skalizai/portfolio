@@ -1,8 +1,9 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, House } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { DASHBOARD_LINKS } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
+import { householdHomeSummary } from "@/lib/household/overview";
 import { getJobsOverview } from "@/lib/jobs/overview";
 import { getProfile } from "@/lib/profile/store";
 import { getSearchSettings } from "@/lib/search/settings";
@@ -21,6 +22,7 @@ function Chip({ title, detail, className }: { title: string; detail: string; cla
 /** The landing page: who you are, where the search stands, and a way into each section. */
 export default async function HomePage() {
   const [overview, stored, settings] = await Promise.all([getJobsOverview(), getProfile(), getSearchSettings()]);
+  const household = await householdHomeSummary().catch(() => "Payroll, money sent home and expenses");
   const profile = stored?.profile;
   // The name you go by: "Muhammad Sohail Khan Alizai" is greeted as Sohail.
   const names = profile?.name.split(/\s+/).filter(Boolean) ?? [];
@@ -117,6 +119,22 @@ export default async function HomePage() {
             </li>
           ))}
         </ul>
+      </section>
+      <section aria-labelledby="household-title" className="mt-6 rounded-[2rem] border border-line bg-surface/70 p-5 sm:p-8">
+        <p className="font-mono text-xs tracking-wider text-accent-text uppercase">Sections</p>
+        <h2 id="household-title" className="mt-1 text-2xl font-semibold">
+          Household &amp; Family
+        </h2>
+        <Link href="/household" className="group mt-6 flex max-w-md flex-col rounded-2xl border border-line bg-bg/60 p-4 transition-colors hover:border-line-strong">
+          <span className="bg-gradient-accent flex size-10 items-center justify-center rounded-xl text-on-accent">
+            <House aria-hidden className="size-5" />
+          </span>
+          <span className="mt-4 flex items-center justify-between font-display font-semibold">
+            Overview
+            <ArrowRight aria-hidden className="size-4 text-dim transition-transform group-hover:translate-x-1" />
+          </span>
+          <span className="mt-1 text-sm break-words text-dim">{household}</span>
+        </Link>
       </section>
     </>
   );
