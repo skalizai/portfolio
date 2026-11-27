@@ -135,15 +135,15 @@ describe("birthdays, ages and renewals", () => {
 });
 
 describe("bank accounts and channels", () => {
-  const account = (overrides: Record<string, unknown> = {}) => banks.BankAccountInputSchema.parse({ bankName: "HBL", accountNumber: "pk36 scbl 0000 0011 2345 6702", ...overrides });
+  const account = (overrides: Record<string, unknown> = {}) => banks.BankAccountInputSchema.parse({ bankName: "HBL", accountTitle: "Sana Alizai", branch: "Gulberg", ...overrides });
 
   it("the first account is the main one, another can take over, and removing the main one passes it on", async () => {
-    expect(banks.BankAccountInputSchema.safeParse({ bankName: "HBL", accountNumber: "12" }).success).toBe(false);
-    expect(account().accountNumber).toBe("PK36 SCBL 0000 0011 2345 6702");
+    expect(banks.BankAccountInputSchema.safeParse({ bankName: " ", branch: "Gulberg" }).success).toBe(false);
+    expect(banks.accountLabel({ bankName: "UBL", branch: "", accountTitle: "Sohail" })).toBe("UBL · Sohail");
     const wife = ok(await family.createFamilyMember(member()));
     const first = ok(await banks.addBankAccount(wife.id, account()));
-    const second = ok(await banks.addBankAccount(wife.id, account({ bankName: "Meezan", accountNumber: "0101-2233445566", isPrimary: "on" })));
-    expect((await banks.listBankAccounts(wife.id)).map((a) => [banks.accountLabel(a), a.isPrimary])).toEqual([["Meezan ••••5566", true], ["HBL ••••6702", false]]);
+    const second = ok(await banks.addBankAccount(wife.id, account({ bankName: "Meezan", branch: "DHA", isPrimary: "on" })));
+    expect((await banks.listBankAccounts(wife.id)).map((a) => [banks.accountLabel(a), a.isPrimary])).toEqual([["Meezan · DHA", true], ["HBL · Gulberg", false]]);
     ok(await banks.removeBankAccount(second.id));
     expect((await banks.listBankAccounts(wife.id)).map((a) => [a.id, a.isPrimary])).toEqual([[first.id, true]]);
     expect(await banks.addBankAccount("nobody", account())).toMatchObject({ ok: false, status: 404 });
@@ -153,10 +153,10 @@ describe("bank accounts and channels", () => {
     const wife = ok(await family.createFamilyMember(member()));
     const me = ok(await family.createFamilyMember(member({ fullName: "Sohail Khan", relationship: "SELF" })));
     const hers = ok(await banks.addBankAccount(wife.id, account()));
-    const mine = ok(await banks.addBankAccount(me.id, account({ bankName: "UBL", accountNumber: "998877665544" })));
+    const mine = ok(await banks.addBankAccount(me.id, account({ bankName: "UBL" })));
     const byRecipient = await banks.accountsByRecipient();
     const wifeRecipient = (await db().recipient.findUniqueOrThrow({ where: { familyMemberId: wife.id } })).id;
-    expect(byRecipient[wifeRecipient]).toEqual([{ id: hers.id, label: "HBL ••••6702" }]);
+    expect(byRecipient[wifeRecipient]).toEqual([{ id: hers.id, label: "HBL · Gulberg" }]);
 
     const transfer = (bankAccountId: string) => remittances.RemittanceInputSchema.parse({ date: "2026-11-02", recipientId: wifeRecipient, amountAed: "1000", rate: "75", bankAccountId, channel: "Al Ansari Exchange" });
     expect(await remittances.createRemittance(transfer(mine.id))).toMatchObject({ ok: false, status: 400 });

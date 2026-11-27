@@ -141,7 +141,6 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ i
                       {a.isPrimary && <span className="ml-2 rounded-md bg-chip px-1.5 py-0.5 text-[11px] font-semibold text-on-accent">Main</span>}
                     </p>
                     {a.accountTitle && <p className="text-dim">{a.accountTitle}</p>}
-                    <p className="font-mono break-all">{a.accountNumber}</p>
                     {a.branch && <p className="text-dim">{a.branch}</p>}
                   </div>
                   <RemoveButton path={`/api/household/bank-accounts/${a.id}`} label={`${a.bankName} account`} />

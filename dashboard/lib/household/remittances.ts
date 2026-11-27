@@ -170,7 +170,7 @@ export async function listRemittances(filters: RemittanceFilters = {}) {
       ...(filters.purpose && filters.purpose in PURPOSE_LABELS ? { purpose: filters.purpose as Purpose } : {}),
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    include: { recipient: { select: { id: true, name: true } }, bankAccount: { select: { bankName: true, accountNumber: true } } },
+    include: { recipient: { select: { id: true, name: true } }, bankAccount: { select: { bankName: true, branch: true, accountTitle: true } } },
   });
 }
 

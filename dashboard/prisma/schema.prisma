@@ -817,8 +817,8 @@ model BankAccount {
   familyMember   FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
   bankName       String
   accountTitle   String       @default("")
-  /// Account number or IBAN.
-  accountNumber  String
+  /// No longer asked for; older accounts may have one.
+  accountNumber  String       @default("")
   branch         String       @default("")
   isPrimary      Boolean      @default(false)
   isDemo         Boolean      @default(false)

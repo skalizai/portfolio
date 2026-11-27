@@ -30,31 +30,27 @@ function useJsonForm(path: string, done: string) {
   return { submit, message, busy };
 }
 
-/** Adds a bank account for a family member: bank, title, account number or IBAN, branch. */
+/** Adds a bank account for a family member: bank, title and branch. */
 export function AddBankAccount({ memberId, name }: { memberId: string; name: string }) {
   const { submit, message, busy } = useJsonForm(`/api/household/family/${memberId}/bank-accounts`, "Account added.");
   return (
-    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2" aria-label={`Add a bank account for ${name}`}>
+    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-3" aria-label={`Add a bank account for ${name}`}>
       <label className="block text-sm">
         Bank
-        <input className={FIELD} name="bankName" required maxLength={80} placeholder="e.g. HBL, Meezan, UBL" />
+        <input className={FIELD} name="bankName" required maxLength={80} placeholder="e.g. Bank Alfalah, HBL, Meezan" />
       </label>
       <label className="block text-sm">
         Account title
         <input className={FIELD} name="accountTitle" maxLength={120} placeholder="Name on the account" />
       </label>
       <label className="block text-sm">
-        Account number or IBAN
-        <input className={`${FIELD} font-mono`} name="accountNumber" required maxLength={40} autoComplete="off" placeholder="PK36 SCBL 0000 0011 2345 6702" />
+        Branch
+        <input className={FIELD} name="branch" maxLength={120} placeholder="e.g. Gulberg, Lahore" />
       </label>
-      <label className="block text-sm">
-        Branch <span className="text-dim">(optional)</span>
-        <input className={FIELD} name="branch" maxLength={120} />
-      </label>
-      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+      <label className="flex items-center gap-2 text-sm sm:col-span-3">
         <input type="checkbox" name="isPrimary" className="size-4 accent-[var(--brand)]" /> Main account (chosen first when sending)
       </label>
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
         <Button type="submit" className="h-11 rounded-xl px-5" disabled={busy}>
           <Plus aria-hidden className="size-4" /> Add account
         </Button>

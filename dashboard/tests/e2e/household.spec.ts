@@ -432,9 +432,10 @@ test.describe.serial("household and family", () => {
     const bank = page.getByRole("region", { name: /^Bank accounts/ });
     await bank.getByLabel("Bank", { exact: true }).fill("HBL");
     await bank.getByLabel("Account title").fill("Sana Alizai");
-    await bank.getByLabel("Account number or IBAN").fill("pk36 scbl 0000 0011 2345 6702");
+    await bank.getByLabel("Branch").fill("Gulberg, Lahore");
     await bank.getByRole("button", { name: "Add account" }).click();
-    await expect(bank.getByRole("listitem")).toContainText("PK36 SCBL 0000 0011 2345 6702");
+    await expect(bank.getByRole("listitem")).toContainText("Gulberg, Lahore");
+    await expect(bank.getByLabel(/IBAN|Account number/)).toHaveCount(0);
     await expect(bank.getByRole("listitem")).toContainText("Main");
     await noA11yIssues(page);
 
@@ -443,10 +444,10 @@ test.describe.serial("household and family", () => {
     const transfer = page.getByRole("region", { name: "Record a transfer" });
     const sentTo = transfer.getByLabel("Sent to");
     await expect(sentTo.locator("option:checked")).toHaveText("Sana Alizai");
-    await expect(transfer.getByLabel("To account").locator("option:checked")).toHaveText("HBL ••••6702");
+    await expect(transfer.getByLabel("To account").locator("option:checked")).toHaveText("HBL · Gulberg, Lahore");
     await transfer.getByLabel("Sent (AED)").fill("1000");
     await transfer.getByRole("button", { name: "Record transfer" }).click();
-    await expect(page.getByRole("listitem").filter({ hasText: "to HBL ••••6702" })).toContainText("Sana Alizai");
+    await expect(page.getByRole("listitem").filter({ hasText: "to HBL · Gulberg, Lahore" })).toContainText("Sana Alizai");
     await expect(sentTo.locator('optgroup[label="Family"] option')).toContainText(["Sana Alizai"]);
     await expect(page.getByRole("region", { name: "Recipients" })).not.toContainText("Wife ·");
 

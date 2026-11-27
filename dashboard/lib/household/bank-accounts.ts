@@ -10,20 +10,15 @@ const text = (max: number) => z.string().trim().max(max).default("");
 export const BankAccountInputSchema = z.object({
   bankName: z.string().trim().min(1, "Enter the bank's name").max(80),
   accountTitle: text(120),
-  accountNumber: z
-    .string()
-    .trim()
-    .transform((v) => v.replace(/\s+/g, " ").toUpperCase())
-    .pipe(z.string().min(4, "Enter the account number or IBAN").max(40, "That account number is too long").regex(/^[A-Z0-9 -]+$/, "Use only letters, digits, spaces and dashes")),
   branch: text(120),
   isPrimary: z.preprocess((v) => v === true || v === "on" || v === "true", z.boolean()).default(false),
 });
 export type BankAccountInput = z.infer<typeof BankAccountInputSchema>;
 
-/** "HBL ••••4521", so a list shows which account without the whole number. */
-export function accountLabel(account: { bankName: string; accountNumber: string }) {
-  const digits = account.accountNumber.replace(/[^A-Z0-9]/gi, "");
-  return `${account.bankName} ••••${digits.slice(-4)}`;
+/** "Bank Alfalah · Gulberg", or the bank with the account title when there's no branch. */
+export function accountLabel(account: { bankName: string; branch?: string; accountTitle?: string }) {
+  const detail = account.branch || account.accountTitle;
+  return detail ? `${account.bankName} · ${detail}` : account.bankName;
 }
 
 export async function listBankAccounts(familyMemberId: string) {
