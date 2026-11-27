@@ -2,7 +2,7 @@ import { AuthError, CredentialsSignin } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { signIn } from "@/lib/auth";
+import { hasCurrentSession, signIn } from "@/lib/auth";
 
 export const metadata = { title: "Sign in · Sohail · Home" };
 
@@ -35,6 +35,7 @@ async function login(formData: FormData) {
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string }> }) {
   const { error, notice } = await searchParams;
+  if (await hasCurrentSession()) redirect("/");
 
   return (
     <main className="bg-glow flex min-h-dvh items-center justify-center px-4">

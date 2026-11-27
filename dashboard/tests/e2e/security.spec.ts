@@ -67,10 +67,18 @@ test.describe.serial("security", () => {
     await expect(page.getByRole("status")).toHaveText("Your password was changed. Sign in with the new one.");
     // The other browser's session started before the change, so it's turned away.
     expect((await other.request.get("/api/household/remittances/export")).status()).toBe(401);
+    // Even with the old cookie still there, the sign-in page shows instead of looping back home.
     const otherPage = await other.newPage();
+    await otherPage.goto("/login");
+    await expect(otherPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await otherPage.goto("/");
     await expect(otherPage).toHaveURL(/\/login\?notice=expired$/);
     await other.close();
+
+    // On https the cookie is "__Secure-…"; clearing it has to be marked secure, or browsers keep it.
+    const ended = await page.request.get("/session-ended", { headers: { cookie: "__Secure-authjs.session-token=old" }, maxRedirects: 0 });
+    expect(ended.status()).toBe(307);
+    expect(ended.headers()["set-cookie"]).toMatch(/__Secure-authjs\.session-token=;.*Secure/i);
 
     await signInWithForm(page, TEST_PASSWORD);
     await expect(page.getByRole("alert")).toBeVisible();

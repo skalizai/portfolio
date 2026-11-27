@@ -9,9 +9,12 @@ const NOTICES = new Set(["changed", "reset", "everywhere", "expired"]);
  */
 export async function GET(request: Request) {
   const reason = new URL(request.url).searchParams.get("reason") ?? "expired";
-  const jar = await cookies();
-  for (const cookie of jar.getAll()) {
-    if (/^(__Secure-)?authjs\.session-token(\.\d+)?$/.test(cookie.name)) jar.delete(cookie.name);
+  const response = NextResponse.redirect(new URL(`/login?notice=${NOTICES.has(reason) ? reason : "expired"}`, request.url));
+  for (const cookie of (await cookies()).getAll()) {
+    if (!/^(__Secure-)?authjs\.session-token(\.\d+)?$/.test(cookie.name)) continue;
+    // On https the cookie is "__Secure-…", which a browser only replaces when the replacement is
+    // marked secure too; without that the old session cookie would stay.
+    response.cookies.set(cookie.name, "", { path: "/", maxAge: 0, expires: new Date(0), httpOnly: true, sameSite: "lax", secure: cookie.name.startsWith("__Secure-") });
   }
-  return NextResponse.redirect(new URL(`/login?notice=${NOTICES.has(reason) ? reason : "expired"}`, request.url));
+  return response;
 }

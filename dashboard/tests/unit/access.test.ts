@@ -61,7 +61,8 @@ describe("decideAccess", () => {
   it("allows the owner everywhere and moves them off the login page", () => {
     expect(decide("/", OWNER)).toBe("allow");
     expect(decide("/api/stats", OWNER)).toBe("allow");
-    expect(decide("/login", OWNER)).toBe("redirect-home");
+    // The page itself checks whether the session is still current before sending you home.
+    expect(decide("/login", OWNER)).toBe("allow");
   });
 
   it("leaves only the auth routes open, not lookalike paths", () => {

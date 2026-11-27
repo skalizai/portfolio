@@ -53,7 +53,9 @@ export function decideAccess(input: {
 
   const signedIn = isAllowedEmail(email, allowedEmail);
 
-  if (pathname === "/login") return signedIn ? "redirect-home" : "allow";
+  // The sign-in page itself sends you home when your session is still good. Middleware can't tell,
+  // since a session can be ended by a password change after its cookie was made.
+  if (pathname === "/login") return "allow";
   if (PUBLIC_PATHS.includes(pathname)) return "allow";
   if (signedIn) return "allow";
 
