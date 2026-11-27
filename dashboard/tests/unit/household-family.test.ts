@@ -11,6 +11,7 @@ let db: typeof import("@/lib/db").db;
 let family: typeof import("@/lib/household/family");
 let employees: typeof import("@/lib/household/employees");
 let remittances: typeof import("@/lib/household/remittances");
+let linked: typeof import("@/lib/household/linked-recipients");
 
 beforeAll(async () => {
   pg = await PGlite.create();
@@ -23,6 +24,7 @@ beforeAll(async () => {
   family = await import("@/lib/household/family");
   employees = await import("@/lib/household/employees");
   remittances = await import("@/lib/household/remittances");
+  linked = await import("@/lib/household/linked-recipients");
 });
 
 afterAll(async () => {
@@ -64,20 +66,28 @@ describe("family members", () => {
     expect(await recipientNames()).toEqual(["Sana Sohail (WIFE)"]);
   });
 
-  it("children become recipients, you don't, and only one entry can be you", async () => {
+  it("you and your wife become recipients, children don't, and only one entry can be you", async () => {
     ok(await family.createFamilyMember(member({ fullName: "Sohail Khan", relationship: "SELF" })));
     expect(await family.createFamilyMember(member({ fullName: "Someone", relationship: "SELF" }))).toMatchObject({ ok: false, status: 409 });
     const son = ok(await family.createFamilyMember(member({ fullName: "Ahmad Alizai", relationship: "SON", dateOfBirth: "2015-03-10" })));
     ok(await family.createFamilyMember(member()));
-    expect(await recipientNames()).toEqual(["Sana Alizai (WIFE)", "Ahmad Alizai (CHILD)"]);
+    expect((await recipientNames()).sort()).toEqual(["Sana Alizai (WIFE)", "Sohail Khan (me) (OTHER)"]);
 
-    // Removing him hides the recipient but keeps what was sent.
-    const recipientId = (await db().recipient.findUniqueOrThrow({ where: { familyMemberId: son.id } })).id;
-    await remittances.createRemittance(remittances.RemittanceInputSchema.parse({ date: "2026-11-02", recipientId, amountAed: "300", rate: "76" }));
-    ok(await family.removeFamilyMember(son.id));
-    expect(await recipientNames()).toEqual(["Sana Alizai (WIFE)"]);
+    // A child's recipient from before is hidden, with what was sent to them kept.
+    const old = await db().recipient.create({ data: { name: "Ahmad Alizai", relationship: "CHILD", familyMemberId: son.id } });
+    await remittances.createRemittance(remittances.RemittanceInputSchema.parse({ date: "2026-11-02", recipientId: old.id, amountAed: "300", rate: "76" }));
+    await linked.syncLinkedRecipients();
+    expect(await recipientNames()).not.toContain("Ahmad Alizai (CHILD)");
+    expect(await db().remittance.count({ where: { recipientId: old.id } })).toBe(1);
+
+    // Removing someone hides their recipient but keeps what was sent.
+    const mother = ok(await family.createFamilyMember(member({ fullName: "Bibi Jan", relationship: "MOTHER" })));
+    const recipientId = (await db().recipient.findUniqueOrThrow({ where: { familyMemberId: mother.id } })).id;
+    await remittances.createRemittance(remittances.RemittanceInputSchema.parse({ date: "2026-11-03", recipientId, amountAed: "500", rate: "76" }));
+    ok(await family.removeFamilyMember(mother.id));
+    expect(await recipientNames()).not.toContain("Bibi Jan (MOTHER)");
     expect(await db().remittance.count({ where: { recipientId } })).toBe(1);
-    expect((await family.listFamily()).map((m) => m.relationship)).toEqual(["SELF", "WIFE"]);
+    expect((await family.listFamily()).map((m) => m.relationship)).toEqual(["SELF", "WIFE", "SON"]);
   });
 
   it("staff appear as recipients until they leave, and linked recipients keep their names", async () => {

@@ -15,13 +15,17 @@ export const FAMILY_TO_RECIPIENT = {
   OTHER: "OTHER",
 } as const satisfies Record<string, RecipientRelationship>;
 
+/** Sons and daughters: money for them goes through you or your wife. */
+const CHILDREN: string[] = ["SON", "DAUGHTER"];
+
 /** Relationships you'd have one of, so an older recipient with that relationship can be taken over. */
 const ONE_OF_A_KIND: RecipientRelationship[] = ["WIFE", "MOTHER", "FATHER"];
 
 type Person = { key: "familyMemberId" | "employeeId"; id: string; name: string; relationship: RecipientRelationship; phone: string; city: string; isDemo: boolean; hidden: boolean };
 
 /**
- * Keeps a recipient for each family member (except you) and each employee, so they can be chosen
+ * Keeps a recipient for each adult family member, you included (your own account in Pakistan),
+ * and each employee, so they can be chosen
  * when recording money sent. The recipient follows the person's name, and is hidden when they're
  * removed or, for staff, have left; their past transfers stay. The first time your wife, mother or
  * father is added, an earlier recipient with that relationship (such as "Wife") becomes theirs, so
@@ -35,8 +39,17 @@ export async function syncLinkedRecipients(client: Client = db()): Promise<numbe
   ]);
 
   const people: Person[] = [
-    // You don't send money to yourself, so your own entry never shows as a recipient.
-    ...members.map((m) => ({ key: "familyMemberId" as const, id: m.id, name: m.fullName, relationship: m.relationship === "SELF" ? ("OTHER" as const) : FAMILY_TO_RECIPIENT[m.relationship], phone: m.phone, city: m.city, isDemo: m.isDemo, hidden: Boolean(m.deletedAt) || m.relationship === "SELF" })),
+    // You send to your own Pakistan account too; children aren't sent money directly, so they never show.
+    ...members.map((m) => ({
+      key: "familyMemberId" as const,
+      id: m.id,
+      name: m.relationship === "SELF" ? `${m.fullName} (me)` : m.fullName,
+      relationship: m.relationship === "SELF" ? ("OTHER" as const) : FAMILY_TO_RECIPIENT[m.relationship],
+      phone: m.phone,
+      city: m.city,
+      isDemo: m.isDemo,
+      hidden: Boolean(m.deletedAt) || CHILDREN.includes(m.relationship),
+    })),
     ...employees.map((e) => ({ key: "employeeId" as const, id: e.id, name: e.fullName, relationship: "EMPLOYEE" as const, phone: e.phone, city: "", isDemo: e.isDemo, hidden: Boolean(e.deletedAt) || e.status === "LEFT" })),
   ];
   let changed = 0;

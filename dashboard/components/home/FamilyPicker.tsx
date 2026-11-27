@@ -121,14 +121,14 @@ export function FamilyPicker({ members }: { members: PickerMember[] }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href={`/household/family/${picked.id}`} className="flex h-12 items-center rounded-2xl border border-line-strong px-5 text-sm font-medium hover:bg-surface-2">
-              Open {picked.firstName}&rsquo;s page
+              {picked.firstName === "You" ? "Open your page" : <>Open {picked.firstName}&rsquo;s page</>}
             </Link>
             {picked.sendTo && (
               <Link
                 href={`/household/remittances?send=${picked.sendTo}#new-transfer`}
                 className="bg-gradient-accent flex h-12 items-center rounded-2xl px-6 text-sm font-semibold text-on-accent shadow-[0_10px_30px_-10px] shadow-[#ab8af5] hover:opacity-90"
               >
-                Send money to {picked.firstName}
+                {picked.firstName === "You" ? "Send to your own account" : `Send money to ${picked.firstName}`}
               </Link>
             )}
           </div>
