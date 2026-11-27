@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import Link from "next/link";
 import { RunPayrollForm } from "@/components/household/PayrollForms";
+import { RemoveButton } from "@/components/household/RemoveButton";
 import { Button } from "@/components/ui/button";
 import { formatPkr, monthOf } from "@/lib/household/money";
 import { listRuns } from "@/lib/household/payroll";
@@ -54,7 +55,10 @@ export default async function PayrollPage() {
                   <th scope="col" className="py-2 pr-3 text-right font-medium">Gross</th>
                   <th scope="col" className="py-2 pr-3 text-right font-medium">Deductions</th>
                   <th scope="col" className="py-2 pr-3 text-right font-medium">Net</th>
-                  <th scope="col" className="py-2 font-medium">Paid on</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">Paid on</th>
+                  <th scope="col" className="py-2 font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -70,7 +74,17 @@ export default async function PayrollPage() {
                     <td className="py-2 pr-3 text-right font-mono">{formatPkr(r.totalGross)}</td>
                     <td className="py-2 pr-3 text-right font-mono">{formatPkr(r.totalDeductions)}</td>
                     <td className="py-2 pr-3 text-right font-mono font-semibold">{formatPkr(r.totalNet)}</td>
-                    <td className="py-2">{r.paidAt ? dateFormat.format(r.paidAt) : "–"}</td>
+                    <td className="py-2 pr-3">{r.paidAt ? dateFormat.format(r.paidAt) : "–"}</td>
+                    <td className="py-2">
+                      {r.status === "DRAFT" && (
+                        <RemoveButton
+                          path={`/api/household/payroll/${r.id}`}
+                          verb="Delete"
+                          label={`${monthFormat.format(new Date(`${r.month}-01T00:00:00Z`))} payroll`}
+                          question={`Delete the ${monthFormat.format(new Date(`${r.month}-01T00:00:00Z`))} draft payroll? Any changes made to it are lost; advance repayments stay due.`}
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

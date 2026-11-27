@@ -425,4 +425,23 @@ test.describe.serial("household and family", () => {
     await page.goto("/");
     await expect(page.getByRole("region", { name: "Your family" })).toContainText("Sana");
   });
+
+  test("a draft payroll can be deleted, from its page or from the history", async ({ page, context }) => {
+    await page.goto("/household/payroll");
+    await page.getByLabel("Month").fill("2027-05");
+    await page.getByRole("button", { name: "Run payroll" }).click();
+    await expect(page).toHaveURL(/\/household\/payroll\/2027-05$/);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Delete this draft payroll" }).click();
+    await expect(page).toHaveURL(/\/household\/payroll$/);
+    await expect(page.getByRole("link", { name: "May 2027" })).toHaveCount(0);
+
+    expect((await context.request.post("/api/household/payroll", { data: { month: "2027-06" } })).status()).toBe(201);
+    await page.reload();
+    const row = page.getByRole("row").filter({ has: page.getByRole("link", { name: "June 2027" }) });
+    page.once("dialog", (dialog) => dialog.accept());
+    await row.getByRole("button", { name: "Delete June 2027 payroll" }).click();
+    await expect(page.getByRole("link", { name: "June 2027" })).toHaveCount(0);
+    await noA11yIssues(page);
+  });
 });

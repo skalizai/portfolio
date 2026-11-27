@@ -259,6 +259,23 @@ export async function reopenRun(runId: string, reason: string): Promise<Result> 
   });
 }
 
+/**
+ * Deletes a draft run and its lines, so the month can be run again from scratch. Advance repayments
+ * stay due, since a draft hasn't recorded them. An approved or paid run has to be reopened first,
+ * which undoes its repayments and payslips and logs why.
+ */
+export async function deleteRun(runId: string): Promise<Result> {
+  return db().$transaction(async (tx) => {
+    const run = await tx.payrollRun.findUnique({ where: { id: runId }, include: { lines: true } });
+    if (!run) return { ok: false as const, error: "That payroll doesn't exist.", status: 404 };
+    if (run.status !== "DRAFT") return { ok: false as const, error: `This payroll is ${run.status === "PAID" ? "paid" : "approved"}. Reopen it first, then delete it.`, status: 409 };
+    await tx.payrollLine.deleteMany({ where: { runId } });
+    await tx.payrollRun.delete({ where: { id: runId } });
+    await audit(tx, { entity: "PayrollRun", entityId: runId, action: "delete", before: run });
+    return { ok: true as const };
+  });
+}
+
 export async function getRun(month: string) {
   return db().payrollRun.findUnique({
     where: { month },

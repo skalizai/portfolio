@@ -112,6 +112,32 @@ describe("payroll runs", () => {
     expect(log.at(-1)!.after).toMatchObject({ reason: "Forgot the Eid gift" });
   });
 
+  it("deletes a draft so the month can be run again, but not an approved or paid run until it's reopened", async () => {
+    const shazia = await addEmployee("Shazia", "35000");
+    await advances.createAdvance({ employeeId: shazia.id, date: "2026-11-05", amount: "10000", reason: "Medical", plan: "FIXED_MONTHLY", perMonth: "5000" });
+    const run = await payroll.prepareRun("2026-11");
+    if (!run.ok) throw new Error(run.error);
+
+    expect(await payroll.deleteRun(run.id)).toEqual({ ok: true });
+    expect(await payroll.getRun("2026-11")).toBeNull();
+    expect(await db().payrollLine.count()).toBe(0);
+    expect(await db().advanceInstallment.count({ where: { status: "DUE" } })).toBe(2);
+    expect(await db().householdAuditLog.count({ where: { entity: "PayrollRun", action: "delete" } })).toBe(1);
+    expect(await payroll.deleteRun(run.id)).toMatchObject({ ok: false, status: 404 });
+
+    const again = await payroll.prepareRun("2026-11");
+    if (!again.ok) throw new Error(again.error);
+    await payroll.approveRun(again.id);
+    await payroll.payRun(again.id, { paidAt: "2026-11-28", method: "Cash", reference: "" });
+    expect(await payroll.deleteRun(again.id)).toMatchObject({ ok: false, status: 409 });
+    expect(await db().payslip.count()).toBe(1);
+
+    await payroll.reopenRun(again.id, "Paid the wrong month");
+    expect(await payroll.deleteRun(again.id)).toEqual({ ok: true });
+    expect(await db().advanceInstallment.count({ where: { status: "DUE" } })).toBe(2);
+    expect(await db().payslip.count()).toBe(0);
+  });
+
   it("won't approve a run where deductions exceed pay", async () => {
     const shazia = await addEmployee("Shazia", "10000");
     await advances.createAdvance({ employeeId: shazia.id, date: "2026-11-05", amount: "50000", reason: "", plan: "ONE_TIME" });

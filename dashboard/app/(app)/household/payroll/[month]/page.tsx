@@ -2,6 +2,7 @@ import { ArrowLeft, Download, Lock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddLineForm, PayrollLineEditor, RunActions } from "@/components/household/PayrollForms";
+import { RemoveButton } from "@/components/household/RemoveButton";
 import { Button } from "@/components/ui/button";
 import { listEmployees } from "@/lib/household/employees";
 import { formatPkr, isMonth } from "@/lib/household/money";
@@ -92,14 +93,20 @@ export default async function PayrollMonthPage({ params }: { params: Promise<{ m
         </h2>
         <p className="mt-1 text-sm text-dim">
           {run.status === "DRAFT"
-            ? "Approving locks this month. You can reopen it later if needed; that's logged."
+            ? "Approving locks this month. You can reopen it later if needed; that's logged. Or delete this draft to start the month again."
             : run.status === "APPROVED"
               ? "Marking it paid also records this month's advance repayments and creates the payslips."
               : "Reopening puts this month's advance repayments back to due and withdraws the payslips until it's paid again."}
+          {run.status !== "DRAFT" && " To delete this payroll, reopen it first."}
         </p>
         <div className="mt-4">
           <RunActions runId={run.id} status={run.status} />
         </div>
+        {run.status === "DRAFT" && (
+          <div className="mt-4 border-t border-line pt-4">
+            <RemoveButton path={`/api/household/payroll/${run.id}`} verb="Delete" label="this draft payroll" question="Delete this draft payroll? Any changes made to it are lost; advance repayments stay due." then="/household/payroll" />
+          </div>
+        )}
       </section>
 
       <ul className="mt-6 space-y-4">
