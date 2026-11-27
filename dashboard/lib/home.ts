@@ -125,6 +125,8 @@ async function householdSummary(today: Date) {
     targets: targetProgress(recipients, monthTransfers, month),
     pendingExpenses,
     family,
+    // Which recipient to preselect when sending money to a family member.
+    sendTo: Object.fromEntries(recipients.filter((r) => r.familyMemberId).map((r) => [r.familyMemberId!, r.id])) as Record<string, string>,
     familyExpiries: familyExpiries(family, settings.expiryAlertDays, today),
     birthdays: family
       .filter((m) => m.relationship !== "SELF")

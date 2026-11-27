@@ -137,9 +137,9 @@ test.describe("signed in as the owner", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test("uses its own evergreen theme and display font by default", async ({ page }) => {
+  test("uses its own noir theme and display font by default", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(7, 17, 14)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(5, 5, 5)");
     await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-family", /Sora/i);
   });
 });

@@ -25,7 +25,7 @@ test.describe.serial("household and family", () => {
 
   test("the section has its tabs in the top bar", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Household & Family" }).click();
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Household", exact: true }).click();
     await expect(page).toHaveURL(/\/household$/);
     const tabs = page.getByRole("navigation", { name: "Household & Family" });
     for (const name of ["Overview", "Family", "Employees", "Advances", "Payroll", "Payslips", "Remittances", "Expenses", "Settings"]) {
@@ -367,8 +367,8 @@ test.describe.serial("household and family", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Household & Family" })).toContainText("Sent home");
-    await expect(page.getByText(/^\d+ people on staff$/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Money sent home" })).toContainText("To your wife");
+    await expect(page.getByRole("region", { name: "Household & Family" })).toContainText("Staff payroll");
 
     await page.goto("/household/settings");
     page.once("dialog", (dialog) => dialog.accept());
@@ -423,7 +423,7 @@ test.describe.serial("household and family", () => {
     await expect(page.getByRole("region", { name: "Recipients" })).not.toContainText("Wife ·");
 
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Your family" })).toContainText("Sana");
+    await expect(page.getByRole("region", { name: "Pick family member" })).toContainText("Sana");
   });
 
   test("a draft payroll can be deleted, from its page or from the history", async ({ page, context }) => {

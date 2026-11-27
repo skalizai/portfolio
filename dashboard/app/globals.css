@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 /*
- * "Evergreen": deep green with emerald and amber accents, chosen to look distinct from the public
- * portfolio's violet and cyan. Dark is the default.
+ * "Noir": near-black surfaces, a lemon yellow for what you picked, mint green for done and chosen,
+ * and soft violet for the main action. Dark is the default.
  */
 :root {
-  --bg: #07110e;
-  --surface: #0d1a16;
-  --surface-2: #14261f;
-  --line: rgba(220, 255, 240, 0.09);
-  --line-strong: rgba(220, 255, 240, 0.3);
-  --txt: #e9f3ef;
-  --dim: #9db3ab;
-  --brand: #34d399;
-  --brand-2: #fbbf24;
-  --accent-text: #5eead4;
-  --on-accent: #04110c;
-  --gradient: linear-gradient(90deg, var(--brand), var(--brand-2));
-  --glow-1: rgba(52, 211, 153, 0.16);
-  --glow-2: rgba(251, 191, 36, 0.1);
+  --bg: #050505;
+  --surface: #111112;
+  --surface-2: #1c1c1e;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.26);
+  --txt: #f5f5f4;
+  --dim: #a3a3a3;
+  --brand: #3ddc97;
+  --brand-2: #f2e14c;
+  --accent-text: #3ddc97;
+  --on-accent: #0a0a0a;
+  --chip: #f2e14c;
+  --gradient: linear-gradient(135deg, #c8b0ff, #ab8af5);
+  --glow-1: rgba(171, 138, 245, 0.07);
+  --glow-2: rgba(61, 220, 151, 0.05);
   --gain: #4ade80;
   --loss: #fca5a5;
   /* Chart series, validated for colour-blind separation on this surface. Three at most, then Other. */
@@ -30,16 +31,18 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f4f8f5;
+  --bg: #efefec;
   --surface: #ffffff;
-  --surface-2: #e6f0eb;
-  --line: rgba(7, 17, 14, 0.12);
-  --line-strong: rgba(7, 17, 14, 0.45);
-  --txt: #0a1914;
-  --dim: #4a5e57;
-  --accent-text: #047857;
-  --glow-1: rgba(16, 185, 129, 0.14);
-  --glow-2: rgba(245, 158, 11, 0.12);
+  --surface-2: #e7e7e3;
+  --line: rgba(10, 10, 10, 0.1);
+  --line-strong: rgba(10, 10, 10, 0.42);
+  --txt: #0d0d0d;
+  --dim: #52525b;
+  --brand: #0f9b63;
+  --brand-2: #a88a00;
+  --accent-text: #0b7a4d;
+  --glow-1: rgba(139, 92, 246, 0.06);
+  --glow-2: rgba(16, 185, 129, 0.05);
   --gain: #15803d;
   --loss: #b91c1c;
   --series-1: #2a78d6;
@@ -61,6 +64,7 @@
   --color-brand-2: var(--brand-2);
   --color-accent-text: var(--accent-text);
   --color-on-accent: var(--on-accent);
+  --color-chip: var(--chip);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
   --color-series-1: var(--series-1);
@@ -107,7 +111,7 @@
   color: transparent;
 }
 
-/* Soft emerald and amber light behind the landing page. */
+/* Faint violet and mint light behind the pages. */
 @utility bg-glow {
   background-image:
     radial-gradient(60rem 30rem at 85% -10%, var(--glow-1), transparent 60%),
@@ -140,4 +144,36 @@
   @media (prefers-reduced-motion: no-preference) {
     animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
+}
+
+/* Member photos stay black and white until hovered or picked, like contact sheets. */
+@utility photo-mono {
+  filter: grayscale(1) contrast(1.05);
+  transition: filter 0.35s ease;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@utility animate-pop {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: pop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  }
+}
+
+/* The Focus chips on Home show only the matching cards. */
+.focus-board[data-focus="family"] [data-area]:not([data-area~="family"]),
+.focus-board[data-focus="money"] [data-area]:not([data-area~="money"]),
+.focus-board[data-focus="household"] [data-area]:not([data-area~="household"]),
+.focus-board[data-focus="investments"] [data-area]:not([data-area~="investments"]),
+.focus-board[data-focus="career"] [data-area]:not([data-area~="career"]) {
+  display: none;
 }
