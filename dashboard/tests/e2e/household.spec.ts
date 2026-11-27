@@ -265,6 +265,14 @@ test.describe.serial("household and family", () => {
 
   test("money sent home is recorded at a rate, totalled against a target, edited, exported and removed", async ({ page, context }) => {
     await page.setViewportSize({ width: 380, height: 900 });
+    // Channels are set up once in Settings, then chosen on each transfer.
+    await page.goto("/household/settings");
+    const channels = page.getByRole("region", { name: "Transfer channels" });
+    await channels.getByLabel("New channel").fill("Al Ansari Exchange");
+    await channels.getByRole("button", { name: "Add channel" }).click();
+    await expect(channels.getByRole("list", { name: "Channels" })).toContainText("Al Ansari Exchange");
+    await noA11yIssues(page);
+
     await page.goto("/household/remittances");
     await expect(page.getByText("No transfers yet.")).toBeVisible();
 
@@ -277,11 +285,14 @@ test.describe.serial("household and family", () => {
     await expect(recipients).toContainText("Target AED");
 
     const form = page.getByRole("region", { name: "Record a transfer" });
+    // The rate starts at the default from Settings and can be changed; there's no fee to enter.
+    await expect(form.getByLabel("Rate (PKR per 1 AED)")).toHaveValue(/^\d+(\.\d+)?$/);
+    await expect(form.getByLabel("Fee (AED)")).toHaveCount(0);
     await form.getByLabel("Sent to").selectOption({ label: "Mother" });
     await form.getByLabel("Sent (AED)").fill("500");
     await form.getByLabel("Rate (PKR per 1 AED)").fill("76.25");
     await expect(form.getByText(/38,125 at this rate/)).toBeVisible();
-    await form.getByLabel("Fee (AED)").fill("10");
+    await form.getByLabel("Channel").selectOption("Al Ansari Exchange");
     await form.getByLabel("Purpose").selectOption("MEDICAL");
     await form.getByRole("button", { name: "Record transfer" }).click();
     await expect(form.getByRole("status")).toHaveText("Transfer recorded.");
@@ -289,6 +300,8 @@ test.describe.serial("household and family", () => {
     await expect(page.getByRole("region", { name: /Monthly targets/ }).getByRole("progressbar", { name: /Mother: 50%/ })).toBeVisible();
     const row = page.getByRole("listitem").filter({ hasText: "Mother ·" }).filter({ hasText: "Medical" });
     await expect(row).toContainText(/38,125/);
+    await expect(row).toContainText("Al Ansari Exchange");
+    await expect(row).not.toContainText("fee");
     await expect(page.getByText("Average rate", { exact: true })).toBeVisible();
     await noA11yIssues(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
@@ -414,11 +427,26 @@ test.describe.serial("household and family", () => {
     const xlsx = await context.request.get("/api/household/family/export");
     expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
 
-    // She took over the Wife recipient, and Send money opens the transfer form with her chosen.
+    // Her bank account is added on her page, and chosen when sending to her.
     await card.click();
+    const bank = page.getByRole("region", { name: /^Bank accounts/ });
+    await bank.getByLabel("Bank", { exact: true }).fill("HBL");
+    await bank.getByLabel("Account title").fill("Sana Alizai");
+    await bank.getByLabel("Account number or IBAN").fill("pk36 scbl 0000 0011 2345 6702");
+    await bank.getByRole("button", { name: "Add account" }).click();
+    await expect(bank.getByRole("listitem")).toContainText("PK36 SCBL 0000 0011 2345 6702");
+    await expect(bank.getByRole("listitem")).toContainText("Main");
+    await noA11yIssues(page);
+
+    // She took over the Wife recipient, and Send money opens the transfer form with her chosen.
     await page.getByRole("link", { name: "Send money" }).click();
-    const sentTo = page.getByRole("region", { name: "Record a transfer" }).getByLabel("Sent to");
+    const transfer = page.getByRole("region", { name: "Record a transfer" });
+    const sentTo = transfer.getByLabel("Sent to");
     await expect(sentTo.locator("option:checked")).toHaveText("Sana Alizai");
+    await expect(transfer.getByLabel("To account").locator("option:checked")).toHaveText("HBL ••••6702");
+    await transfer.getByLabel("Sent (AED)").fill("1000");
+    await transfer.getByRole("button", { name: "Record transfer" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "to HBL ••••6702" })).toContainText("Sana Alizai");
     await expect(sentTo.locator('optgroup[label="Family"] option')).toContainText(["Sana Alizai"]);
     await expect(page.getByRole("region", { name: "Recipients" })).not.toContainText("Wife ·");
 

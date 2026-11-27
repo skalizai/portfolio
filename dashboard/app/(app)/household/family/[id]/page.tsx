@@ -1,10 +1,13 @@
-import { ArrowLeft, Eye, Send } from "lucide-react";
+import { ArrowLeft, Eye, Landmark, Send } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/household/Avatar";
+import { AddBankAccount } from "@/components/household/BankAccountForms";
+import { RemoveButton } from "@/components/household/RemoveButton";
 import { DeleteDocument, DocumentUpload, PhotoUpload } from "@/components/household/EmployeeExtras";
 import { FamilyForm, RemoveFamilyMember } from "@/components/household/FamilyForm";
 import { db } from "@/lib/db";
+import { listBankAccounts } from "@/lib/household/bank-accounts";
 import { ageOn, daysToBirthday, FAMILY_DOCUMENT_LABELS, FAMILY_RELATIONSHIP_LABELS, familyExpiries, whenText } from "@/lib/household/family";
 import { toFamilyFormValues } from "@/lib/household/family-view";
 import { formatAed, formatPkr, sum } from "@/lib/household/money";
@@ -18,6 +21,9 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ i
   const member = await db().familyMember.findFirst({ where: { id, deletedAt: null }, include: { documents: { orderBy: { createdAt: "desc" } }, recipient: true } });
   if (!member) notFound();
   const settings = await getHouseholdSettings();
+  // Children are not sent money directly, so they have no bank accounts here.
+  const takesMoney = member.relationship !== "SON" && member.relationship !== "DAUGHTER";
+  const accounts = takesMoney ? await listBankAccounts(member.id) : [];
 
   const files = new Map((await db().storedFile.findMany({ where: { id: { in: member.documents.map((d) => d.fileId) } }, select: { id: true, filename: true, size: true } })).map((f) => [f.id, f]));
   const alerts = familyExpiries([member], settings.expiryAlertDays);
@@ -118,6 +124,36 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ i
           </section>
         </aside>
       </div>
+
+      {takesMoney && (
+        <section aria-labelledby="bank-accounts" className="mt-5 rounded-[1.5rem] border border-line bg-surface p-5">
+          <h2 id="bank-accounts" className="flex items-center gap-2 font-semibold">
+            <Landmark aria-hidden className="size-5 text-dim" /> Bank accounts ({accounts.length})
+          </h2>
+          <p className="mt-1 text-sm text-dim">Chosen under &ldquo;To account&rdquo; when you record money sent to {member.relationship === "SELF" ? "yourself" : member.fullName}.</p>
+          {accounts.length > 0 && (
+            <ul className="mt-4 grid gap-3 md:grid-cols-2">
+              {accounts.map((a) => (
+                <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line p-4 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {a.bankName}
+                      {a.isPrimary && <span className="ml-2 rounded-md bg-chip px-1.5 py-0.5 text-[11px] font-semibold text-on-accent">Main</span>}
+                    </p>
+                    {a.accountTitle && <p className="text-dim">{a.accountTitle}</p>}
+                    <p className="font-mono break-all">{a.accountNumber}</p>
+                    {a.branch && <p className="text-dim">{a.branch}</p>}
+                  </div>
+                  <RemoveButton path={`/api/household/bank-accounts/${a.id}`} label={`${a.bankName} account`} />
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4">
+            <AddBankAccount memberId={member.id} name={member.fullName} />
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="upload" className="mt-5 rounded-[1.5rem] border border-line bg-surface p-5">
         <h2 id="upload" className="font-semibold">

@@ -659,6 +659,9 @@ model Remittance {
   reference     String            @default("")
   purpose       RemittancePurpose @default(HOUSEHOLD)
   receiptFileId String?
+  /// The family member's bank account it went to, when chosen.
+  bankAccountId String?
+  bankAccount   BankAccount?      @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
   notes         String            @default("")
   isDemo        Boolean           @default(false)
   deletedAt     DateTime?
@@ -789,6 +792,7 @@ model FamilyMember {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   documents        FamilyDocument[]
+  bankAccounts     BankAccount[]
   recipient        Recipient?
 
   @@schema("household")
@@ -802,6 +806,36 @@ model FamilyDocument {
   fileId         String
   expiry         DateTime?          @db.Date
   createdAt      DateTime           @default(now())
+
+  @@schema("household")
+}
+
+/// A family member's bank account in Pakistan or the UAE, to choose when recording money sent.
+model BankAccount {
+  id             String       @id @default(cuid())
+  familyMemberId String
+  familyMember   FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  bankName       String
+  accountTitle   String       @default("")
+  /// Account number or IBAN.
+  accountNumber  String
+  branch         String       @default("")
+  isPrimary      Boolean      @default(false)
+  isDemo         Boolean      @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  remittances    Remittance[]
+
+  @@index([familyMemberId])
+  @@schema("household")
+}
+
+/// How money is sent (an exchange house, a bank app), set up in Settings and chosen on each transfer.
+model TransferChannel {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 
   @@schema("household")
 }

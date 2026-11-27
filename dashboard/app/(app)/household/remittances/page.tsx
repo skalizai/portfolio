@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { formatAed, formatPkr, mask, monthOf } from "@/lib/household/money";
 import { EMPTY_RECIPIENT, groupOf, listRecipients, listRemittances, PURPOSE_LABELS, RELATIONSHIP_LABELS, summarizeRemittances, targetProgress } from "@/lib/household/remittances";
 import { syncLinkedRecipients } from "@/lib/household/linked-recipients";
+import { accountLabel, accountsByRecipient, listChannels } from "@/lib/household/bank-accounts";
 import { getHouseholdSettings } from "@/lib/household/settings";
 
 const FIELD = "mt-1 h-11 w-full rounded-xl border border-line-strong bg-bg px-3 text-sm text-txt";
@@ -53,7 +54,7 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
   const settings = await getHouseholdSettings();
   // Family members and staff added since the last visit show up as recipients.
   await syncLinkedRecipients();
-  const recipients = await listRecipients();
+  const [recipients, accounts, channels] = await Promise.all([listRecipients(), accountsByRecipient(), listChannels()]);
   const rows = await listRemittances({ from, to, recipientId, purpose });
   const thisMonth = monthOf(new Date());
   const monthRows = await listRemittances({ from: `${thisMonth}-01` });
@@ -91,7 +92,9 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
         <div className="mt-4">
           <RemittanceForm
             recipients={recipients.map((r) => ({ id: r.id, name: r.name, group: groupOf(r) }))}
-            initial={{ date: today, recipientId: recipients.find((r) => r.id === send)?.id ?? recipients[0]?.id ?? "", amountAed: "", rate: settings.defaultPkrPerAed.toString(), amountPkr: "", feeAed: "", channel: "", reference: "", purpose: "HOUSEHOLD", notes: "" }}
+            accounts={accounts}
+            channels={channels.map((c) => c.name)}
+            initial={{ date: today, recipientId: recipients.find((r) => r.id === send)?.id ?? recipients[0]?.id ?? "", amountAed: "", rate: settings.defaultPkrPerAed.toString(), amountPkr: "", channel: "", bankAccountId: "", reference: "", purpose: "HOUSEHOLD", notes: "" }}
           />
         </div>
       </section>
@@ -167,7 +170,7 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
           ["Sent", formatAed(summary.aed)],
           ["Received", formatPkr(summary.pkr)],
           ["Average rate", summary.averageRate ? `${summary.averageRate.toFixed(2)} PKR/AED` : "–"],
-          ["Fees", formatAed(summary.fees)],
+          ["Transfers", String(summary.count)],
         ].map(([label, value]) => (
           <div key={label} className="flex flex-col rounded-[1.25rem] border border-line bg-surface p-4">
             <dt className="text-sm text-dim">{label}</dt>
@@ -200,7 +203,7 @@ export default async function RemittancesPage({ searchParams }: { searchParams: 
                     </p>
                     <p className="text-sm text-dim">
                       {dateFormat.format(r.date)} · {PURPOSE_LABELS[r.purpose]} · {Number(r.rate).toFixed(2)} PKR/AED
-                      {Number(r.feeAed) > 0 ? ` · fee ${formatAed(r.feeAed)}` : ""}
+                      {r.bankAccount ? ` · to ${accountLabel(r.bankAccount)}` : ""}
                       {r.channel ? ` · ${r.channel}` : ""}
                       {r.reference ? ` · ref ${r.reference}` : ""}
                     </p>

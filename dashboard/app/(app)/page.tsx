@@ -93,8 +93,6 @@ export default async function HomePage() {
       notes: [...new Set(notes)].slice(0, 4),
     };
   });
-  // Your wife and children first; you last.
-  members.sort((a, b) => Number(a.firstName === "You") - Number(b.firstName === "You"));
 
   return (
     <>

@@ -39,8 +39,10 @@ export const RemittanceInputSchema = z.object({
     .regex(/^\d+(\.\d{1,6})?$/, "Enter the rate as rupees per dirham, like 76.25")
     .refine((v) => Number(v) > 0, "The rate must be above zero"),
   amountPkr: optional(money("The amount received", "rupees")),
+  // Kept for older records and imports; the form no longer asks, as transfers have no fee.
   feeAed: optional(money("The fee", "dirhams")),
   channel: text(80),
+  bankAccountId: optional(z.string().trim().max(40)),
   reference: text(120),
   purpose: z.enum(["HOUSEHOLD", "SCHOOL_FEES", "MEDICAL", "CONSTRUCTION", "SAVINGS", "OTHER"]).default("HOUSEHOLD"),
   notes: text(500),
@@ -50,6 +52,13 @@ export type RemittanceInput = z.infer<typeof RemittanceInputSchema>;
 export const EMPTY_RECIPIENT = { name: "", relationship: "OTHER", phone: "", account: "", wallet: "", city: "", notes: "", monthlyTargetAed: "" };
 
 type Fail = { ok: false; error: string; status: number };
+
+/** A chosen account must belong to the family member the money went to. */
+async function accountMatches(recipientId: string, bankAccountId?: string) {
+  if (!bankAccountId) return true;
+  return Boolean(await db().bankAccount.findFirst({ where: { id: bankAccountId, familyMember: { recipient: { id: recipientId } } }, select: { id: true } }));
+}
+const WRONG_ACCOUNT: Fail = { ok: false, error: "That bank account isn't one of the recipient's.", status: 400 };
 
 function remittanceData(input: RemittanceInput) {
   if (new D(input.amountAed).lte(0)) return null;
@@ -62,6 +71,7 @@ function remittanceData(input: RemittanceInput) {
     amountPkr: input.amountPkr ? round2(input.amountPkr) : pkrFromAed(input.amountAed, input.rate),
     feeAed: round2(input.feeAed ?? "0"),
     channel: input.channel,
+    bankAccountId: input.bankAccountId || null,
     reference: input.reference,
     purpose: input.purpose,
     notes: input.notes,
@@ -117,6 +127,7 @@ export async function createRemittance(input: RemittanceInput, receiptFileId?: s
   if (!data) return { ok: false, error: "The amount sent must be more than zero.", status: 400 };
   const recipient = await db().recipient.findFirst({ where: { id: input.recipientId, deletedAt: null }, select: { id: true } });
   if (!recipient) return { ok: false, error: "That recipient doesn't exist.", status: 404 };
+  if (!(await accountMatches(input.recipientId, input.bankAccountId))) return WRONG_ACCOUNT;
   const remittance = await db().remittance.create({ data: { ...data, receiptFileId: receiptFileId ?? null } });
   await audit(db(), { entity: "Remittance", entityId: remittance.id, action: "create", after: remittance });
   return { ok: true, id: remittance.id };
@@ -129,6 +140,7 @@ export async function updateRemittance(id: string, input: RemittanceInput, recei
   if (!data) return { ok: false, error: "The amount sent must be more than zero.", status: 400 };
   const recipient = await db().recipient.findFirst({ where: { id: input.recipientId }, select: { id: true } });
   if (!recipient) return { ok: false, error: "That recipient doesn't exist.", status: 404 };
+  if (!(await accountMatches(input.recipientId, input.bankAccountId))) return WRONG_ACCOUNT;
   const after = await db().remittance.update({ where: { id }, data: { ...data, ...(receiptFileId ? { receiptFileId } : {}) } });
   await audit(db(), { entity: "Remittance", entityId: id, action: "update", before, after });
   return { ok: true };
@@ -158,7 +170,7 @@ export async function listRemittances(filters: RemittanceFilters = {}) {
       ...(filters.purpose && filters.purpose in PURPOSE_LABELS ? { purpose: filters.purpose as Purpose } : {}),
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    include: { recipient: { select: { id: true, name: true } } },
+    include: { recipient: { select: { id: true, name: true } }, bankAccount: { select: { bankName: true, accountNumber: true } } },
   });
 }
 

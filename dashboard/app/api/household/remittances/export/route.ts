@@ -1,4 +1,5 @@
 import { requireApiSession } from "@/lib/auth";
+import { accountLabel } from "@/lib/household/bank-accounts";
 import { listRemittances, PURPOSE_LABELS } from "@/lib/household/remittances";
 import { xlsxResponse } from "@/lib/household/xlsx";
 
@@ -8,11 +9,11 @@ export async function GET(request: Request) {
   if (denied) return denied;
   const params = new URL(request.url).searchParams;
   const rows = await listRemittances({ from: params.get("from") ?? undefined, to: params.get("to") ?? undefined, recipientId: params.get("recipientId") ?? undefined, purpose: params.get("purpose") ?? undefined });
-  const headers = ["Date", "Recipient", "Sent (AED)", "Rate (PKR per AED)", "Received (PKR)", "Fee (AED)", "Channel", "Reference", "Purpose", "Notes"];
+  const headers = ["Date", "Recipient", "Sent (AED)", "Rate (PKR per AED)", "Received (PKR)", "Channel", "To account", "Reference", "Purpose", "Notes"];
   return xlsxResponse(
     `Remittances ${new Date().toISOString().slice(0, 10)}.xlsx`,
     headers,
-    rows.map((r) => [r.date, r.recipient.name, Number(r.amountAed), Number(r.rate), Number(r.amountPkr), Number(r.feeAed), r.channel, r.reference, PURPOSE_LABELS[r.purpose], r.notes]),
+    rows.map((r) => [r.date, r.recipient.name, Number(r.amountAed), Number(r.rate), Number(r.amountPkr), r.channel, r.bankAccount ? accountLabel(r.bankAccount) : "", r.reference, PURPOSE_LABELS[r.purpose], r.notes]),
     "Remittances",
   );
 }

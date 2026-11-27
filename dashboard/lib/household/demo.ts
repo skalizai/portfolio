@@ -46,9 +46,9 @@ export async function loadDemoData(today = new Date()): Promise<{ ok: true; skip
   const mother = await db().recipient.create({ data: { name: "Mother (demo)", relationship: "MOTHER", city: "Peshawar", monthlyTargetAed: "500", isDemo: true } });
   const wife = await db().recipient.findFirst({ where: { relationship: "WIFE", deletedAt: null } });
   const transfers = [
-    { month: first, d: 2, recipientId: wife?.id ?? mother.id, aed: "2500", rate: rate.plus("0.4"), fee: "15", purpose: "HOUSEHOLD" as const, channel: "Al Ansari" },
-    { month: second, d: 3, recipientId: mother.id, aed: "800", rate: rate.plus("0.2"), fee: "10", purpose: "MEDICAL" as const, channel: "Bank app" },
-    { month: thisMonth, d: 1, recipientId: wife?.id ?? mother.id, aed: "2500", rate, fee: "15", purpose: "SCHOOL_FEES" as const, channel: "Al Ansari" },
+    { month: first, d: 2, recipientId: wife?.id ?? mother.id, aed: "2500", rate: rate.plus("0.4"), fee: "0", purpose: "HOUSEHOLD" as const, channel: "Al Ansari" },
+    { month: second, d: 3, recipientId: mother.id, aed: "800", rate: rate.plus("0.2"), fee: "0", purpose: "MEDICAL" as const, channel: "Bank app" },
+    { month: thisMonth, d: 1, recipientId: wife?.id ?? mother.id, aed: "2500", rate, fee: "0", purpose: "SCHOOL_FEES" as const, channel: "Al Ansari" },
   ];
   for (const t of transfers) {
     await db().remittance.create({

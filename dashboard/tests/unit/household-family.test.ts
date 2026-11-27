@@ -12,6 +12,7 @@ let family: typeof import("@/lib/household/family");
 let employees: typeof import("@/lib/household/employees");
 let remittances: typeof import("@/lib/household/remittances");
 let linked: typeof import("@/lib/household/linked-recipients");
+let banks: typeof import("@/lib/household/bank-accounts");
 
 beforeAll(async () => {
   pg = await PGlite.create();
@@ -25,6 +26,7 @@ beforeAll(async () => {
   employees = await import("@/lib/household/employees");
   remittances = await import("@/lib/household/remittances");
   linked = await import("@/lib/household/linked-recipients");
+  banks = await import("@/lib/household/bank-accounts");
 });
 
 afterAll(async () => {
@@ -34,7 +36,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await pg.exec('TRUNCATE "household"."FamilyDocument", "household"."FamilyMember", "household"."Remittance", "household"."EmployeeAllowance", "household"."Employee", "household"."HouseholdAuditLog" CASCADE');
+  await pg.exec('TRUNCATE "household"."BankAccount", "household"."TransferChannel", "household"."FamilyDocument", "household"."FamilyMember", "household"."Remittance", "household"."EmployeeAllowance", "household"."Employee", "household"."HouseholdAuditLog" CASCADE');
   await pg.exec(`DELETE FROM "household"."Recipient"`);
   await pg.exec(`INSERT INTO "household"."Recipient" ("id", "name", "relationship") VALUES ('recipient-wife', 'Wife', 'WIFE')`);
 });
@@ -129,5 +131,47 @@ describe("birthdays, ages and renewals", () => {
       today,
     );
     expect(alerts.map((a) => `${a.name} ${a.document} ${family.whenText(a.daysLeft)}`)).toEqual(["Your Emirates ID expired 6 days ago", "Sana's passport expires in 126 days"]);
+  });
+});
+
+describe("bank accounts and channels", () => {
+  const account = (overrides: Record<string, unknown> = {}) => banks.BankAccountInputSchema.parse({ bankName: "HBL", accountNumber: "pk36 scbl 0000 0011 2345 6702", ...overrides });
+
+  it("the first account is the main one, another can take over, and removing the main one passes it on", async () => {
+    expect(banks.BankAccountInputSchema.safeParse({ bankName: "HBL", accountNumber: "12" }).success).toBe(false);
+    expect(account().accountNumber).toBe("PK36 SCBL 0000 0011 2345 6702");
+    const wife = ok(await family.createFamilyMember(member()));
+    const first = ok(await banks.addBankAccount(wife.id, account()));
+    const second = ok(await banks.addBankAccount(wife.id, account({ bankName: "Meezan", accountNumber: "0101-2233445566", isPrimary: "on" })));
+    expect((await banks.listBankAccounts(wife.id)).map((a) => [banks.accountLabel(a), a.isPrimary])).toEqual([["Meezan ••••5566", true], ["HBL ••••6702", false]]);
+    ok(await banks.removeBankAccount(second.id));
+    expect((await banks.listBankAccounts(wife.id)).map((a) => [a.id, a.isPrimary])).toEqual([[first.id, true]]);
+    expect(await banks.addBankAccount("nobody", account())).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("a transfer can go to one of the recipient's own accounts, and no one else's", async () => {
+    const wife = ok(await family.createFamilyMember(member()));
+    const me = ok(await family.createFamilyMember(member({ fullName: "Sohail Khan", relationship: "SELF" })));
+    const hers = ok(await banks.addBankAccount(wife.id, account()));
+    const mine = ok(await banks.addBankAccount(me.id, account({ bankName: "UBL", accountNumber: "998877665544" })));
+    const byRecipient = await banks.accountsByRecipient();
+    const wifeRecipient = (await db().recipient.findUniqueOrThrow({ where: { familyMemberId: wife.id } })).id;
+    expect(byRecipient[wifeRecipient]).toEqual([{ id: hers.id, label: "HBL ••••6702" }]);
+
+    const transfer = (bankAccountId: string) => remittances.RemittanceInputSchema.parse({ date: "2026-11-02", recipientId: wifeRecipient, amountAed: "1000", rate: "75", bankAccountId, channel: "Al Ansari Exchange" });
+    expect(await remittances.createRemittance(transfer(mine.id))).toMatchObject({ ok: false, status: 400 });
+    const sent = ok(await remittances.createRemittance(transfer(hers.id)));
+    const row = (await remittances.listRemittances()).find((r) => r.id === sent.id)!;
+    expect(row.bankAccount).toMatchObject({ bankName: "HBL" });
+    expect(row.feeAed.toString()).toBe("0");
+  });
+
+  it("channels are added once each and removed without touching past transfers", async () => {
+    ok(await banks.addChannel("Al Ansari Exchange"));
+    expect(await banks.addChannel("al ansari exchange")).toMatchObject({ ok: false, status: 409 });
+    const bank = ok(await banks.addChannel("Meezan app"));
+    expect((await banks.listChannels()).map((ch) => ch.name)).toEqual(["Al Ansari Exchange", "Meezan app"]);
+    ok(await banks.removeChannel(bank.id));
+    expect((await banks.listChannels()).map((ch) => ch.name)).toEqual(["Al Ansari Exchange"]);
   });
 });

@@ -82,6 +82,8 @@ test.describe.serial("signing in with email and password", () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)/);
 
+    // Lets the sidebar's link prefetches finish first: one still in flight could renew the cookie after sign-out.
+    await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await page.goto("/matches");

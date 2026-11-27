@@ -30,8 +30,8 @@ export type RemittanceValues = {
   amountAed: string;
   rate: string;
   amountPkr: string;
-  feeAed: string;
   channel: string;
+  bankAccountId: string;
   reference: string;
   purpose: string;
   notes: string;
@@ -63,8 +63,28 @@ function RecipientOptions({ recipients }: { recipients: RecipientOption[] }) {
   );
 }
 
-export function RemittanceForm({ recipients, initial, id }: { recipients: RecipientOption[]; initial: RemittanceValues; id?: string }) {
+type AccountOption = { id: string; label: string };
+
+export function RemittanceForm({
+  recipients,
+  initial,
+  id,
+  accounts = {},
+  channels = [],
+}: {
+  recipients: RecipientOption[];
+  initial: RemittanceValues;
+  id?: string;
+  /** Each recipient's bank accounts, main one first. */
+  accounts?: Record<string, AccountOption[]>;
+  /** Channel names from Settings. */
+  channels?: string[];
+}) {
   const router = useRouter();
+  const [recipientId, setRecipientId] = useState(initial.recipientId);
+  const recipientAccounts = accounts[recipientId] ?? [];
+  // A channel typed on an older transfer stays choosable when editing it.
+  const channelOptions = initial.channel && !channels.includes(initial.channel) ? [...channels, initial.channel] : channels;
   const [aed, setAed] = useState(initial.amountAed);
   const [rate, setRate] = useState(initial.rate);
   const [received, setReceived] = useState(initial.amountPkr);
@@ -94,6 +114,7 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: Recipi
     setAed("");
     setReceived("");
     setRate(initial.rate);
+    setRecipientId(initial.recipientId);
     router.refresh();
   }
 
@@ -108,7 +129,7 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: Recipi
         </label>
         <label className="block text-sm">
           Sent to
-          <select className={FIELD} name="recipientId" required defaultValue={initial.recipientId}>
+          <select className={FIELD} name="recipientId" required value={recipientId} onChange={(e) => setRecipientId(e.target.value)}>
             <RecipientOptions recipients={recipients} />
           </select>
         </label>
@@ -127,13 +148,35 @@ export function RemittanceForm({ recipients, initial, id }: { recipients: Recipi
             {received ? "As entered." : worked ? `${pkr.format(worked)} at this rate. Type a figure if a different amount arrived.` : "Worked out from the rate."}
           </span>
         </label>
-        <label className="block text-sm">
-          Fee (AED)
-          <input className={FIELD} name="feeAed" inputMode="decimal" placeholder="0" defaultValue={initial.feeAed} />
-        </label>
+        {recipientAccounts.length > 0 && (
+          <label className="block text-sm">
+            To account
+            {/* Keyed by recipient so it starts on their main account each time. */}
+            <select key={recipientId} className={FIELD} name="bankAccountId" defaultValue={recipientId === initial.recipientId && initial.bankAccountId ? initial.bankAccountId : recipientAccounts[0]!.id}>
+              {recipientAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+              <option value="">Not to a saved account</option>
+            </select>
+          </label>
+        )}
         <label className="block text-sm">
           Channel
-          <input className={FIELD} name="channel" maxLength={80} placeholder="e.g. Al Ansari, bank app" defaultValue={initial.channel} />
+          <select className={FIELD} name="channel" defaultValue={initial.channel || channelOptions[0] || ""} aria-describedby="channel-hint">
+            {channelOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+            <option value="">Not set</option>
+          </select>
+          {!channels.length && (
+            <span id="channel-hint" className="mt-1 block text-xs text-dim">
+              Add your channels in Household settings.
+            </span>
+          )}
         </label>
         <label className="block text-sm">
           Reference
