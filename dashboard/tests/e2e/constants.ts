@@ -5,6 +5,9 @@ export const TEST_AUTH_SECRET = "e2e-only-secret-not-used-anywhere-else";
 export const TEST_ALLOWED_EMAIL = "owner@example.com";
 export const TEST_CRON_SECRET = "e2e-only-cron-secret";
 export const TEST_PASSWORD = "e2e-only-password-123";
+/** Where the e2e server writes security emails instead of sending them, one JSON line each. */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+export const TEST_OUTBOX = (require("node:path") as typeof import("node:path")).join((require("node:os") as typeof import("node:os")).tmpdir(), "dashboard-e2e-security-outbox.jsonl");
 
 /** The test password in the dashboard's hash format, with few iterations so tests stay quick. */
 export function testPasswordHash(): string {

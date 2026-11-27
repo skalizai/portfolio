@@ -4,6 +4,13 @@ import { isAllowedEmail } from "@/lib/access";
 import { authConfig } from "@/lib/auth.config";
 import { verifyPassword } from "@/lib/password";
 
+declare module "next-auth" {
+  interface Session {
+    /** When this session started, in milliseconds, so a password change can end older ones. */
+    signedInAt?: number;
+  }
+}
+
 /** After this many wrong passwords in the window, sign-in is refused until the window passes. */
 export const MAX_FAILED_LOGINS = 5;
 export const LOCKOUT_MS = 15 * 60 * 1000;
@@ -14,18 +21,22 @@ class TooManyAttempts extends CredentialsSignin {
 
 /**
  * Checks your email and password. Wrong attempts are counted in the audit log, so the limit holds
- * across server instances. The email that was tried isn't stored.
+ * across server instances. The email that was tried isn't stored. Changing or resetting the password
+ * clears the count, since only you can do that.
  */
 async function authorize(credentials: Partial<Record<"email" | "password", unknown>>) {
   const email = typeof credentials.email === "string" ? credentials.email.trim() : "";
   const password = typeof credentials.password === "string" ? credentials.password : "";
   const { db } = await import("@/lib/db");
 
-  const since = new Date(Date.now() - LOCKOUT_MS);
+  const { credentialInfo, currentPasswordHash } = await import("@/lib/security/credentials");
+  const { changedAt } = await credentialInfo();
+  const windowStart = new Date(Date.now() - LOCKOUT_MS);
+  const since = changedAt && changedAt > windowStart ? changedAt : windowStart;
   const failures = await db().auditLog.count({ where: { action: "auth.failed", at: { gte: since } } });
   if (failures >= MAX_FAILED_LOGINS) throw new TooManyAttempts();
 
-  const ok = isAllowedEmail(email) && (await verifyPassword(password, process.env.AUTH_PASSWORD_HASH));
+  const ok = isAllowedEmail(email) && (await verifyPassword(password, await currentPasswordHash()));
   if (!ok) {
     await db().auditLog.create({ data: { action: "auth.failed" } });
     return null;
@@ -39,12 +50,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Credentials({ credentials: { email: { type: "email" }, password: { type: "password" } }, authorize })],
   callbacks: {
     signIn: ({ user }) => isAllowedEmail(user.email),
+    jwt: ({ token, user }) => (user ? { ...token, signedInAt: Date.now() } : token),
+    session: ({ session, token }) => ({ ...session, signedInAt: typeof token.signedInAt === "number" ? token.signedInAt : undefined }),
   },
 });
 
+/**
+ * Whether you're signed in with a session that's still good: the right email, started after the last
+ * password change or "sign out everywhere".
+ */
+export async function hasCurrentSession() {
+  const session = await auth();
+  if (!isAllowedEmail(session?.user?.email)) return false;
+  const { isSessionCurrent } = await import("@/lib/security/credentials");
+  return isSessionCurrent(session?.signedInAt);
+}
+
 /** For route handlers: a second check behind middleware. Returns a response when access is refused. */
 export async function requireApiSession(): Promise<Response | null> {
-  const session = await auth();
-  if (isAllowedEmail(session?.user?.email)) return null;
+  if (await hasCurrentSession()) return null;
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }

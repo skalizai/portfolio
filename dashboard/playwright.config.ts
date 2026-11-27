@@ -1,5 +1,5 @@
 import { defineConfig } from "@playwright/test";
-import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET, TEST_CRON_SECRET, TEST_DB_PORT, TEST_PORT, testPasswordHash } from "./tests/e2e/constants";
+import { TEST_ALLOWED_EMAIL, TEST_AUTH_SECRET, TEST_CRON_SECRET, TEST_DB_PORT, TEST_OUTBOX, TEST_PORT, testPasswordHash } from "./tests/e2e/constants";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -28,6 +28,7 @@ export default defineConfig({
         AUTH_ALLOWED_EMAIL: TEST_ALLOWED_EMAIL,
         AUTH_PASSWORD_HASH: testPasswordHash(),
         CRON_SECRET: TEST_CRON_SECRET,
+        SECURITY_EMAIL_OUTBOX: TEST_OUTBOX,
       },
     },
   ],

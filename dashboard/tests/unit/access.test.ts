@@ -70,6 +70,14 @@ describe("decideAccess", () => {
     expect(decide("/api/auth-secrets/x")).toBe("unauthorized");
   });
 
+  it("opens only the password reset and session-ended paths without a session", () => {
+    for (const path of ["/login/reset", "/api/security/reset/start", "/api/security/reset/confirm", "/session-ended"]) expect(decide(path)).toBe("allow");
+    expect(decide("/security")).toBe("redirect-login");
+    expect(decide("/api/security/password/start")).toBe("unauthorized");
+    expect(decide("/api/security/reset/startx")).toBe("unauthorized");
+    expect(decide("/login/reset/x")).toBe("redirect-login");
+  });
+
   it("lets the cron secret open the fetch route and nothing else", () => {
     const bearer = `Bearer ${CRON}`;
     expect(decide("/api/jobs/fetch", null, bearer)).toBe("allow");

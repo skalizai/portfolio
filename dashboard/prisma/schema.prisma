@@ -183,6 +183,34 @@ model SearchConfig {
   @@schema("jobmatch")
 }
 
+/// Your sign-in password, once it's set from the Security page. Until then the AUTH_PASSWORD_HASH
+/// setting is used. Only the hash is kept.
+model Credential {
+  id                String    @id @default("owner")
+  passwordHash      String
+  /// Sessions started before this are signed out, such as after a password change.
+  sessionsValidFrom DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  @@schema("jobmatch")
+}
+
+/// A six-digit code emailed to you to confirm a password change or reset. Only its hash is kept.
+model VerificationCode {
+  id        String    @id @default(cuid())
+  purpose   String
+  codeHash  String
+  /// For a change, the new password's hash, applied once the code is confirmed.
+  payload   Json?
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([purpose, createdAt])
+  @@schema("jobmatch")
+}
+
 model AuditLog {
   id            String       @id @default(cuid())
   action        String

@@ -33,6 +33,9 @@ export function isValidCronRequest(
 }
 
 /** The scheduler has no browser session, so these paths alone also accept the cron secret. */
+/** Open without a session: resetting a forgotten password, and clearing an ended session. */
+const PUBLIC_PATHS = ["/login/reset", "/api/security/reset/start", "/api/security/reset/confirm", "/session-ended"];
+
 const CRON_PATHS = ["/api/jobs/fetch", "/api/jobs/score", "/api/notify/digest", "/api/cron/search", "/api/cron/digest"];
 
 export function decideAccess(input: {
@@ -51,6 +54,7 @@ export function decideAccess(input: {
   const signedIn = isAllowedEmail(email, allowedEmail);
 
   if (pathname === "/login") return signedIn ? "redirect-home" : "allow";
+  if (PUBLIC_PATHS.includes(pathname)) return "allow";
   if (signedIn) return "allow";
 
   if (CRON_PATHS.includes(pathname) && isValidCronRequest(authorization, cronSecret)) return "allow";

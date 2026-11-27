@@ -1,10 +1,13 @@
 /**
- * Sets your dashboard password:   npm run auth:set-password
+ * Sets your dashboard password from the terminal:   npm run auth:set-password
+ * (The Security page in the dashboard does the same with an emailed code.)
  *
- * Asks for the password twice without showing it, then stores only its hash in .env.local as
- * AUTH_PASSWORD_HASH. The password itself is never written anywhere.
+ * Asks for the password twice without showing it, then saves only its hash: in the database used by
+ * DATABASE_URL, which the live site reads, and in .env.local as AUTH_PASSWORD_HASH for a fresh setup.
+ * Every device is signed out. The password itself is never written anywhere.
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { config } from "dotenv";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "../lib/password";
 
 function ask(question: string): Promise<string> {
@@ -52,7 +55,14 @@ async function main() {
   const line = `AUTH_PASSWORD_HASH=${hash}`;
   const next = /^AUTH_PASSWORD_HASH=.*$/m.test(current) ? current.replace(/^AUTH_PASSWORD_HASH=.*$/m, () => line) : `${current.replace(/\s*$/, "")}\n${line}\n`;
   writeFileSync(file, next);
-  console.log("Saved. Only the hash is stored in .env.local, never the password itself.");
+
+  config({ path: ".env.local", quiet: true });
+  const { db } = await import("../lib/db");
+  const { savePasswordHash } = await import("../lib/security/credentials");
+  await savePasswordHash(hash);
+  await db().auditLog.create({ data: { action: "auth.password_changed", payload: { from: "terminal" } } });
+  await db().$disconnect();
+  console.log("Saved, and every device is signed out. Only the hash is stored, never the password itself.");
 }
 
 main();

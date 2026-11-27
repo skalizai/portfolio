@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -5,11 +6,13 @@ import { MainNav } from "@/components/MainNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { isAllowedEmail } from "@/lib/access";
-import { auth, signOut } from "@/lib/auth";
+import { auth, hasCurrentSession, signOut } from "@/lib/auth";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
   if (!isAllowedEmail(session?.user?.email)) redirect("/login");
+  // A session from before a password change or "sign out everywhere" is cleared, then sent to sign in.
+  if (!(await hasCurrentSession())) redirect("/session-ended");
 
   return (
     <div className="bg-glow min-h-dvh print:bg-none">
@@ -32,6 +35,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <MainNav />
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <Link href="/security" aria-label="Security" title="Security" className="flex size-9 items-center justify-center rounded-md text-dim hover:bg-surface-2 hover:text-txt">
+              <ShieldCheck aria-hidden className="size-5" />
+            </Link>
             <ThemeToggle />
             <form
               action={async () => {

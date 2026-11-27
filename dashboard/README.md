@@ -11,6 +11,23 @@ npm run test:e2e        # browser tests; stop the dev server on port 3000 first
 npm run db:deploy       # apply migrations to the database in DATABASE_URL
 ```
 
+## Security
+
+The shield in the top bar opens **Security**:
+
+- **Change password**: your current password and a new one (12 characters or more), then a six-digit
+  code emailed to your primary email (the one you sign in with) to confirm. Once confirmed, every device
+  is signed out and you sign in with the new password. You're emailed when it changes.
+- **Forgot your password?** on the sign-in page: your email, then the emailed code and a new password.
+  The page answers the same whatever email is typed, and only sends a code to yours.
+- **Sign out everywhere** ends every session, including this one.
+- **Recent activity**: sign-ins, wrong passwords and password changes.
+
+Codes last 10 minutes, allow 5 tries and can be used once. At most one is sent a minute and five an hour;
+only their hashes are stored. The password hash is kept in the database once it's set from Security
+(or with `npm run auth:set-password`); until then the `AUTH_PASSWORD_HASH` setting is used. Emails go
+through Resend, the same way as the daily digest.
+
 ## Household & Family
 
 Your family and their documents, household staff in Pakistan, their pay and advances, money sent home,
